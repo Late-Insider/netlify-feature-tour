@@ -1,6 +1,6 @@
 "use server"
 
-import { sendMicrosoftGraphEmail, createEmailTemplate } from "./microsoft-graph"
+import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
 
 interface CommentData {
   commenterEmail: string
@@ -12,48 +12,52 @@ interface CommentData {
 
 export async function processNewComment(data: CommentData): Promise<boolean> {
   const { commenterEmail, commenterName, articleTitle, articleUrl, commentText } = data
-
-  const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "admin@example.com"
+  const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "admin@late.com"
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
-  // Send notification to admin
-  const adminSubject = `New Comment on "${articleTitle}"`
-  const adminBody = await createEmailTemplate(
-    "New Comment Received",
+  try {
+    const thankYouContent = `
+      <p>Hi ${commenterName},</p>
+      <p>Thank you for commenting on "<strong>${articleTitle}</strong>".</p>
+      <p>Your comment:</p>
+      <blockquote style="border-left: 3px solid #7c3aed; padding-left: 15px; margin: 20px 0; color: #6b7280;">
+        ${commentText}
+      </blockquote>
+      <p>Want to stay updated with more content like this? <a href="${siteUrl}/#newsletter" style="color: #7c3aed;">Subscribe to our newsletter</a>.</p>
+      <p style="margin-top: 30px;">Best regards,<br><strong>The Late Team</strong></p>
     `
-    <p><strong>${commenterName}</strong> (${commenterEmail}) commented on <a href="${articleUrl}">${articleTitle}</a>:</p>
-    <div style="background-color: #f9fafb; padding: 15px; border-left: 4px solid #7c3aed; margin: 20px 0;">
-      <p style="margin: 0; color: #374151;">${commentText}</p>
-    </div>
-    <p><a href="${articleUrl}" style="color: #7c3aed; text-decoration: underline;">View the article and comment</a></p>
-  `,
-  )
 
-  const adminResult = await sendMicrosoftGraphEmail({
-    to: adminEmail,
-    subject: adminSubject,
-    body: adminBody,
-  })
+    const thankYouHtml = await createEmailTemplate("Thank you for your comment!", thankYouContent)
 
-  // Send thank you email to commenter
-  const commenterSubject = `Thank you for your comment on "${articleTitle}"`
-  const commenterBody = await createEmailTemplate(
-    `Thank you, ${commenterName}!`,
+    await sendMicrosoftGraphEmail({
+      to: commenterEmail,
+      subject: `Thank you for commenting on "${articleTitle}"`,
+      body: thankYouHtml,
+    })
+
+    const adminContent = `
+      <h3>New Comment on Article</h3>
+      <p><strong>Article:</strong> ${articleTitle}</p>
+      <p><strong>Article URL:</strong> <a href="${articleUrl}" style="color: #7c3aed;">${articleUrl}</a></p>
+      <p><strong>Commenter:</strong> ${commenterName} (${commenterEmail})</p>
+      <p><strong>Comment:</strong></p>
+      <blockquote style="border-left: 3px solid #7c3aed; padding-left: 15px; margin: 20px 0; background-color: #f9fafb; padding: 15px; border-radius: 4px;">
+        ${commentText}
+      </blockquote>
+      <p><a href="${articleUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; margin-top: 20px;">View Article</a></p>
     `
-    <p>Thank you for taking the time to share your thoughts on <a href="${articleUrl}">${articleTitle}</a>.</p>
-    <p>We appreciate your engagement and hope you continue to enjoy our content.</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${siteUrl}/#newsletter" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Subscribe to Our Newsletter</a>
-    </div>
-    <p style="margin-top: 20px; color: #6b7280;">Don't want to miss our weekly insights? Subscribe to get our latest articles delivered straight to your inbox.</p>
-  `,
-  )
 
-  const commenterResult = await sendMicrosoftGraphEmail({
-    to: commenterEmail,
-    subject: commenterSubject,
-    body: commenterBody,
-  })
+    const adminHtml = await createEmailTemplate("New Comment Notification", adminContent)
 
-  return adminResult.success && commenterResult.success
+    await sendMicrosoftGraphEmail({
+      to: adminEmail,
+      subject: `New comment on "${articleTitle}"`,
+      body: adminHtml,
+    })
+
+    return true
+  } catch (error) {
+    console.error("Error processing comment notification:", error)
+    return false
+  }
 }

@@ -1,5 +1,8 @@
 "use server"
 
+import { Client } from "@microsoft/microsoft-graph-client"
+import "isomorphic-fetch"
+
 interface EmailParams {
   to: string
   subject: string
@@ -9,80 +12,79 @@ interface EmailParams {
 interface EmailResult {
   success: boolean
   error?: string
+  messageId?: string
+}
+
+async function getAccessToken(): Promise<string> {
+  const tokenEndpoint = `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID}/oauth2/v2.0/token`
+
+  const params = new URLSearchParams({
+    client_id: process.env.MICROSOFT_CLIENT_ID || "",
+    client_secret: process.env.MICROSOFT_CLIENT_SECRET || "",
+    scope: "https://graph.microsoft.com/.default",
+    grant_type: "client_credentials",
+  })
+
+  const response = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to get access token: ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  return data.access_token
+}
+
+function getGraphClient(accessToken: string): Client {
+  return Client.init({
+    authProvider: (done) => {
+      done(null, accessToken)
+    },
+  })
 }
 
 export async function sendMicrosoftGraphEmail(params: EmailParams): Promise<EmailResult> {
   try {
     const { to, subject, body } = params
+    const accessToken = await getAccessToken()
+    const client = getGraphClient(accessToken)
 
-    const clientId = process.env.MICROSOFT_CLIENT_ID
-    const clientSecret = process.env.MICROSOFT_CLIENT_SECRET
-    const tenantId = process.env.MICROSOFT_TENANT_ID
     const senderEmail = process.env.MICROSOFT_SENDER_EMAIL
 
-    if (!clientId || !clientSecret || !tenantId || !senderEmail) {
-      console.error("Missing Microsoft Graph configuration")
-      return { success: false, error: "Email configuration not set up" }
+    if (!senderEmail) {
+      throw new Error("MICROSOFT_SENDER_EMAIL environment variable is not set")
     }
 
-    // Get access token
-    const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        scope: "https://graph.microsoft.com/.default",
-        grant_type: "client_credentials",
-      }),
-    })
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text()
-      console.error("Failed to get access token:", errorText)
-      return { success: false, error: "Authentication failed" }
-    }
-
-    const tokenData = await tokenResponse.json()
-    const accessToken = tokenData.access_token
-
-    // Send email
-    const emailResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${senderEmail}/sendMail`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: {
-          subject: subject,
-          body: {
-            contentType: "HTML",
-            content: body,
-          },
-          toRecipients: [
-            {
-              emailAddress: {
-                address: to,
-              },
-            },
-          ],
+    const message = {
+      message: {
+        subject: subject,
+        body: {
+          contentType: "HTML",
+          content: body,
         },
-        saveToSentItems: true,
-      }),
-    })
-
-    if (!emailResponse.ok) {
-      const errorText = await emailResponse.text()
-      console.error("Failed to send email:", errorText)
-      return { success: false, error: "Failed to send email" }
+        toRecipients: [
+          {
+            emailAddress: {
+              address: to,
+            },
+          },
+        ],
+      },
+      saveToSentItems: "true",
     }
 
+    await client.api(`/users/${senderEmail}/sendMail`).post(message)
+
+    console.log(`Email sent successfully to ${to}`)
     return { success: true }
   } catch (error) {
-    console.error("Error sending email:", error)
+    console.error("Error sending email via Microsoft Graph:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -91,6 +93,8 @@ export async function sendMicrosoftGraphEmail(params: EmailParams): Promise<Emai
 }
 
 export async function createEmailTemplate(title: string, content: string): Promise<string> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+
   return `
 <!DOCTYPE html>
 <html>
@@ -112,7 +116,9 @@ export async function createEmailTemplate(title: string, content: string): Promi
           </tr>
           <tr>
             <td style="padding: 40px;">
-              <h2 style="margin: 0 0 20px; color: #111827; font-size: 24px; font-weight: bold;">${title}</h2>
+              <h2 style="margin: 0 0 20px; color: #111827; font-size: 24px; font-weight: bold;">
+                ${title}
+              </h2>
               <div style="color: #374151; font-size: 16px; line-height: 1.6;">
                 ${content}
               </div>
@@ -124,6 +130,9 @@ export async function createEmailTemplate(title: string, content: string): Promi
                 <strong>Late</strong> - Own Your Time<br>
                 Helping you make the most of every moment
               </p>
+              <p style="margin: 10px 0 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                <a href="${siteUrl}" style="color: #9ca3af; text-decoration: underline;">Visit Our Website</a>
+              </p>
             </td>
           </tr>
         </table>
@@ -134,6 +143,3 @@ export async function createEmailTemplate(title: string, content: string): Promi
 </html>
   `
 }
-
-// Backward compatibility alias
-export const sendMicrosoftEmail = sendMicrosoftGraphEmail

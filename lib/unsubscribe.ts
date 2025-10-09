@@ -61,9 +61,9 @@ export async function verifyUnsubscribeToken(token: string): Promise<{
 /**
  * Generate an unsubscribe URL (server-side only)
  */
-export async function generateUnsubscribeUrl(email: string, category: string): Promise<string> {
-  const token = await generateUnsubscribeToken(email, category)
+export async function generateUnsubscribeUrl(email: string, source: string): Promise<string> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const token = Buffer.from(`${email}:${source}:${Date.now()}`).toString("base64")
   return `${baseUrl}/unsubscribe?token=${encodeURIComponent(token)}`
 }
 
@@ -126,27 +126,27 @@ export async function processUnsubscribe(token: string): Promise<{
 /**
  * Unsubscribe a user directly (server-side only)
  */
-export async function unsubscribeUser(email: string, category: string): Promise<boolean> {
+export async function unsubscribeUser(token: string): Promise<{ success: boolean; message: string }> {
   try {
-    const supabase = createClient()
+    const decoded = Buffer.from(token, "base64").toString("utf-8")
+    const [email] = decoded.split(":")
 
-    const { error } = await supabase
-      .from("subscribers")
-      .update({
-        subscribed: false,
-        unsubscribed_at: new Date().toISOString(),
-      })
-      .eq("email", email)
-      .eq("category", category)
-
-    if (error) {
-      console.error("Unsubscribe error:", error)
-      return false
+    if (!email) {
+      return { success: false, message: "Invalid unsubscribe token" }
     }
 
-    return true
+    const supabase = createClient()
+
+    const { error } = await supabase.from("subscribers").update({ is_active: false }).eq("email", email)
+
+    if (error) {
+      console.error("Error unsubscribing user:", error)
+      return { success: false, message: "Failed to unsubscribe" }
+    }
+
+    return { success: true, message: "Successfully unsubscribed" }
   } catch (error) {
-    console.error("Failed to unsubscribe user:", error)
-    return false
+    console.error("Error processing unsubscribe:", error)
+    return { success: false, message: "An error occurred" }
   }
 }

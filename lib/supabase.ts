@@ -1,84 +1,42 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const isSupabaseConfigured = () => {
-  return Boolean(supabaseUrl && supabaseAnonKey)
-}
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
 
-if (!isSupabaseConfigured()) {
-  console.warn("Supabase environment variables are not configured")
-}
-
-export const supabase = isSupabaseConfigured() ? createSupabaseClient(supabaseUrl, supabaseAnonKey) : null
-
-export const createClient = () => {
-  if (!isSupabaseConfigured()) {
-    throw new Error(
-      "Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.",
-    )
-  }
+export function createClient() {
   return createSupabaseClient(supabaseUrl, supabaseAnonKey)
 }
 
-export async function addContactSubmission(name: string, email: string, message: string) {
-  if (!supabase) {
-    throw new Error("Supabase is not configured")
+export function isSupabaseConfigured(): boolean {
+  return Boolean(supabaseUrl && supabaseAnonKey)
+}
+
+export async function testSupabaseConnection() {
+  try {
+    const { data, error } = await supabase.from("subscribers").select("count").limit(1)
+    if (error) throw error
+    return { success: true, message: "Supabase connection successful" }
+  } catch (error) {
+    console.error("Supabase connection error:", error)
+    return { success: false, error: String(error) }
   }
-
-  const { data, error } = await supabase
-    .from("contact_submissions")
-    .insert([
-      {
-        name,
-        email,
-        message,
-        created_at: new Date().toISOString(),
-      },
-    ])
-    .select()
-
-  if (error) {
-    console.error("Error adding contact submission:", error)
-    throw error
-  }
-
-  return data
 }
 
 export async function addSubscriber(email: string, source: string) {
-  if (!supabase) {
-    throw new Error("Supabase is not configured")
-  }
-
   const { data, error } = await supabase
     .from("subscribers")
-    .insert([
-      {
-        email,
-        source,
-        subscribed_at: new Date().toISOString(),
-        is_active: true,
-      },
-    ])
+    .insert({
+      email,
+      source,
+      is_active: true,
+      subscribed_at: new Date().toISOString(),
+    })
     .select()
+    .single()
 
   if (error) {
-    if (error.code === "23505") {
-      const { data: existingData, error: updateError } = await supabase
-        .from("subscribers")
-        .update({ is_active: true, subscribed_at: new Date().toISOString() })
-        .eq("email", email)
-        .select()
-
-      if (updateError) {
-        console.error("Error updating subscriber:", updateError)
-        throw updateError
-      }
-
-      return existingData
-    }
     console.error("Error adding subscriber:", error)
     throw error
   }
@@ -86,24 +44,157 @@ export async function addSubscriber(email: string, source: string) {
   return data
 }
 
-export async function addCreatorApplication(name: string, email: string, portfolio_url: string, message: string) {
-  if (!supabase) {
-    throw new Error("Supabase is not configured")
+export async function getSubscriberByEmail(email: string) {
+  const { data, error } = await supabase.from("subscribers").select("*").eq("email", email).single()
+
+  if (error && error.code !== "PGRST116") {
+    console.error("Error fetching subscriber:", error)
+    throw error
   }
 
+  return data
+}
+
+export async function getAllActiveSubscribers() {
+  const { data, error } = await supabase.from("subscribers").select("email, name").eq("is_active", true)
+
+  if (error) {
+    console.error("Error fetching active subscribers:", error)
+    throw error
+  }
+
+  return data || []
+}
+
+export async function addComment(email: string, comment: string, articleSlug: string, articleType: string) {
+  const { data, error } = await supabase
+    .from("comments")
+    .insert({
+      email,
+      comment,
+      article_slug: articleSlug,
+      article_type: articleType,
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error adding comment:", error)
+    throw error
+  }
+
+  return data
+}
+
+export async function getCommentsByArticle(articleSlug: string) {
+  const { data, error } = await supabase
+    .from("comments")
+    .select("*")
+    .eq("article_slug", articleSlug)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching comments:", error)
+    throw error
+  }
+
+  return data || []
+}
+
+export async function addEmailToQueue(recipientEmail: string, subject: string, htmlContent: string, emailType: string) {
+  const { data, error } = await supabase
+    .from("email_queue")
+    .insert({
+      recipient_email: recipientEmail,
+      subject,
+      html_content: htmlContent,
+      email_type: emailType,
+      status: "pending",
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error adding email to queue:", error)
+    throw error
+  }
+
+  return data
+}
+
+export async function getPendingEmails() {
+  const { data, error } = await supabase.from("email_queue").select("*").eq("status", "pending").limit(50)
+
+  if (error) {
+    console.error("Error fetching pending emails:", error)
+    throw error
+  }
+
+  return data || []
+}
+
+export async function updateEmailStatus(emailId: string, status: string, errorMessage?: string) {
+  const updateData: any = {
+    status,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (status === "sent") {
+    updateData.sent_at = new Date().toISOString()
+  }
+
+  if (errorMessage) {
+    updateData.error_message = errorMessage
+  }
+
+  const { data, error } = await supabase.from("email_queue").update(updateData).eq("id", emailId).select().single()
+
+  if (error) {
+    console.error("Error updating email status:", error)
+    throw error
+  }
+
+  return data
+}
+
+export async function getDashboardStats() {
+  try {
+    const [subscribersResult, commentsResult, emailsResult] = await Promise.all([
+      supabase.from("subscribers").select("count", { count: "exact", head: true }),
+      supabase.from("comments").select("count", { count: "exact", head: true }),
+      supabase.from("email_queue").select("count", { count: "exact", head: true }),
+    ])
+
+    return {
+      totalSubscribers: subscribersResult.count || 0,
+      totalComments: commentsResult.count || 0,
+      totalEmails: emailsResult.count || 0,
+    }
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error)
+    return {
+      totalSubscribers: 0,
+      totalComments: 0,
+      totalEmails: 0,
+    }
+  }
+}
+
+export async function addCreatorApplication(name: string, email: string, portfolioUrl: string, message: string) {
   const { data, error } = await supabase
     .from("creator_applications")
-    .insert([
-      {
-        name,
-        email,
-        portfolio_url,
-        message,
-        created_at: new Date().toISOString(),
-        status: "pending",
-      },
-    ])
+    .insert({
+      name,
+      email,
+      portfolio_url: portfolioUrl,
+      message,
+      status: "pending",
+      submitted_at: new Date().toISOString(),
+    })
     .select()
+    .single()
 
   if (error) {
     console.error("Error adding creator application:", error)
@@ -113,72 +204,22 @@ export async function addCreatorApplication(name: string, email: string, portfol
   return data
 }
 
-export async function getDashboardStats() {
-  if (!supabase) {
-    throw new Error("Supabase is not configured")
-  }
-
-  const { data: subscribersData, error: subscribersError } = await supabase
-    .from("subscribers")
-    .select("*", { count: "exact", head: true })
-
-  if (subscribersError) {
-    console.error("Error fetching subscribers count:", subscribersError)
-  }
-
-  const { data: contactData, error: contactError } = await supabase
+export async function addContactSubmission(name: string, email: string, message: string) {
+  const { data, error } = await supabase
     .from("contact_submissions")
-    .select("*", { count: "exact", head: true })
+    .insert({
+      name,
+      email,
+      message,
+      submitted_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
 
-  if (contactError) {
-    console.error("Error fetching contact submissions count:", contactError)
+  if (error) {
+    console.error("Error adding contact submission:", error)
+    throw error
   }
 
-  const { data: creatorsData, error: creatorsError } = await supabase
-    .from("creator_applications")
-    .select("*", { count: "exact", head: true })
-
-  if (creatorsError) {
-    console.error("Error fetching creator applications count:", creatorsError)
-  }
-
-  return {
-    subscribers: subscribersData?.length || 0,
-    contactSubmissions: contactData?.length || 0,
-    creatorApplications: creatorsData?.length || 0,
-  }
+  return data
 }
-
-export async function testSupabaseConnection() {
-  if (!supabase) {
-    return {
-      success: false,
-      message: "Supabase is not configured",
-    }
-  }
-
-  try {
-    const { data, error } = await supabase.from("subscribers").select("count")
-
-    if (error) {
-      return {
-        success: false,
-        message: error.message,
-        error,
-      }
-    }
-
-    return {
-      success: true,
-      message: "Successfully connected to Supabase",
-      data,
-    }
-  } catch (error) {
-    return {
-      success: false,
-      message: "Failed to connect to Supabase",
-      error,
-    }
-  }
-}
-export { createClient }

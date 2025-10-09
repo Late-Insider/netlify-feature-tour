@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    optimizeCss: false,
+    optimizePackageImports: ["lucide-react"],
   },
   eslint: {
     ignoreDuringBuilds: true,

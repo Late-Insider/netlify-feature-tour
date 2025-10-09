@@ -1,6 +1,6 @@
 "use server"
 
-import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
+import { sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
 import { createClient } from "@/lib/supabase"
 import { generateUnsubscribeUrl } from "@/lib/unsubscribe"
 
@@ -13,9 +13,6 @@ interface EmailData {
   metadata?: Record<string, any>
 }
 
-/**
- * Schedule an email to be sent at a specific time
- */
 export async function scheduleEmail(data: EmailData): Promise<{
   success: boolean
   emailId?: string
@@ -60,9 +57,6 @@ export async function scheduleEmail(data: EmailData): Promise<{
   }
 }
 
-/**
- * Send pending emails that are scheduled for now or earlier
- */
 export async function sendPendingEmails(): Promise<{
   success: boolean
   sentCount: number
@@ -71,13 +65,12 @@ export async function sendPendingEmails(): Promise<{
   try {
     const supabase = createClient()
 
-    // Get all pending emails that should be sent
     const { data: pendingEmails, error: fetchError } = await supabase
       .from("scheduled_emails")
       .select("*")
       .eq("sent", false)
       .lte("scheduled_for", new Date().toISOString())
-      .limit(50) // Process in batches
+      .limit(50)
 
     if (fetchError) {
       console.error("Error fetching pending emails:", fetchError)
@@ -91,7 +84,6 @@ export async function sendPendingEmails(): Promise<{
     let sentCount = 0
     let failedCount = 0
 
-    // Send emails in parallel (batch of 5 at a time to avoid rate limits)
     const batchSize = 5
     for (let i = 0; i < pendingEmails.length; i += batchSize) {
       const batch = pendingEmails.slice(i, i + batchSize)
@@ -106,7 +98,6 @@ export async function sendPendingEmails(): Promise<{
             })
 
             if (result.success) {
-              // Mark as sent
               await supabase
                 .from("scheduled_emails")
                 .update({
@@ -126,7 +117,6 @@ export async function sendPendingEmails(): Promise<{
         }),
       )
 
-      // Small delay between batches
       if (i + batchSize < pendingEmails.length) {
         await new Promise((resolve) => setTimeout(resolve, 1000))
       }
@@ -147,49 +137,84 @@ export async function sendPendingEmails(): Promise<{
   }
 }
 
-/**
- * Send welcome email to a new subscriber
- */
 export async function sendWelcomeEmail(email: string, name?: string): Promise<boolean> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
   const unsubscribeUrl = await generateUnsubscribeUrl(email, "newsletter")
 
   const subject = `Welcome to Late - Own Your Time`
 
-  const htmlContent = await createEmailTemplate(
-    `Welcome${name ? `, ${name}` : ""}!`,
-    `
-    <p>Thank you for subscribing to our newsletter. We're excited to have you join our community of people who value their time and strive for meaningful productivity.</p>
-    
-    <div style="background-color: #f9fafb; border-left: 4px solid #7c3aed; padding: 20px; margin: 25px 0; border-radius: 4px;">
-      <h3 style="margin: 0 0 10px; color: #111827; font-size: 18px; font-weight: 600;">What to Expect</h3>
-      <ul style="margin: 10px 0 0; padding-left: 20px; color: #374151; font-size: 15px; line-height: 1.8;">
-        <li>Weekly insights on productivity and time management</li>
-        <li>Practical strategies for personal growth</li>
-        <li>Exclusive content and early access to new features</li>
-        <li>Tips on owning your time and living intentionally</li>
-      </ul>
-    </div>
-    
-    <p>In the meantime, explore our latest articles and discover insights that can help you take control of your time.</p>
-    
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${siteUrl}/#newsletter" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Read Latest Articles</a>
-    </div>
-    
-    <p style="margin: 30px 0 0; color: #6b7280; font-size: 15px; line-height: 1.6;">
-      We're glad you're here.<br>
-      <strong style="color: #7c3aed;">The Late Team</strong>
-    </p>
-    
-    <p style="margin: 20px 0 0; color: #9ca3af; font-size: 12px; text-align: center;">
-      <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a>
-    </p>
-  `,
-  )
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Late</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #7c3aed 0%, #000000 100%); border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: bold; letter-spacing: 2px;">LATE</h1>
+              <p style="margin: 10px 0 0; color: #e9d5ff; font-size: 16px; letter-spacing: 1px;">OWN YOUR TIME</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px;">
+              <h2 style="margin: 0 0 20px; color: #111827; font-size: 24px; font-weight: bold;">
+                Welcome${name ? `, ${name}` : ""}!
+              </h2>
+              <p style="margin: 0 0 20px; color: #374151; font-size: 16px; line-height: 1.6;">
+                Thank you for subscribing to our newsletter. We're excited to have you join our community of people who value their time and strive for meaningful productivity.
+              </p>
+              <div style="background-color: #f9fafb; border-left: 4px solid #7c3aed; padding: 20px; margin: 25px 0; border-radius: 4px;">
+                <h3 style="margin: 0 0 10px; color: #111827; font-size: 18px; font-weight: 600;">
+                  What to Expect
+                </h3>
+                <ul style="margin: 10px 0 0; padding-left: 20px; color: #374151; font-size: 15px; line-height: 1.8;">
+                  <li>Weekly insights on productivity and time management</li>
+                  <li>Practical strategies for personal growth</li>
+                  <li>Exclusive content and early access to new features</li>
+                  <li>Tips on owning your time and living intentionally</li>
+                </ul>
+              </div>
+              <p style="margin: 25px 0 20px; color: #374151; font-size: 16px; line-height: 1.6;">
+                In the meantime, explore our latest articles and discover insights that can help you take control of your time.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${siteUrl}/#newsletter" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                  Read Latest Articles
+                </a>
+              </div>
+              <p style="margin: 30px 0 0; color: #6b7280; font-size: 15px; line-height: 1.6;">
+                We're glad you're here.<br>
+                <strong style="color: #7c3aed;">The Late Team</strong>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 30px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 10px; color: #6b7280; font-size: 13px; text-align: center; line-height: 1.5;">
+                <strong>Late</strong> - Own Your Time<br>
+                Helping you make the most of every moment
+              </p>
+              <p style="margin: 10px 0 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `
 
   try {
-    // Schedule for immediate sending
     const result = await scheduleEmail({
       recipientEmail: email,
       subject,
@@ -206,9 +231,6 @@ export async function sendWelcomeEmail(email: string, name?: string): Promise<bo
   }
 }
 
-/**
- * Send newsletter to all subscribers
- */
 export async function sendNewsletterToSubscribers(
   subject: string,
   htmlContent: string,
@@ -221,7 +243,6 @@ export async function sendNewsletterToSubscribers(
   try {
     const supabase = createClient()
 
-    // Get all active newsletter subscribers
     const { data: subscribers, error } = await supabase
       .from("subscribers")
       .select("email, name")
@@ -248,11 +269,9 @@ export async function sendNewsletterToSubscribers(
     const sendTime = scheduledFor || new Date()
     let scheduledCount = 0
 
-    // Schedule emails for all subscribers
     for (const subscriber of subscribers) {
       const unsubscribeUrl = await generateUnsubscribeUrl(subscriber.email, "newsletter")
 
-      // Add unsubscribe link to the HTML content
       const personalizedHtml = htmlContent.replace(
         "</body>",
         `<p style="text-align: center; margin-top: 20px;"><a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a></p></body>`,
@@ -287,9 +306,6 @@ export async function sendNewsletterToSubscribers(
   }
 }
 
-/**
- * Get email automation statistics
- */
 export async function getEmailStats(): Promise<{
   total: number
   sent: number
@@ -317,7 +333,6 @@ export async function getEmailStats(): Promise<{
     const sent = stats.filter((e) => e.sent).length
     const pending = stats.filter((e) => !e.sent).length
 
-    // Group by type
     const byType: Record<string, { total: number; sent: number; pending: number }> = {}
     for (const email of stats) {
       if (!byType[email.email_type]) {
@@ -335,7 +350,7 @@ export async function getEmailStats(): Promise<{
       total,
       sent,
       pending,
-      failed: 0, // Would need to track failures separately
+      failed: 0,
       byType,
     }
   } catch (error) {

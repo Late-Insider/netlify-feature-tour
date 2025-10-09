@@ -8,12 +8,6 @@
     "lint": "next lint",
     "start": "next start"
   },
-  "resolutions": {
-    "tailwindcss": "3.4.1"
-  },
-  "overrides": {
-    "tailwindcss": "3.4.1"
-  },
   "dependencies": {
     "@microsoft/microsoft-graph-client": "latest",
     "@radix-ui/react-accordion": "1.2.2",
@@ -27,12 +21,14 @@
     "@vercel/postgres": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "isomorphic-fetch": "latest",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-themes": "latest",
     "react": "^19",
     "react-dom": "^19",
-    "tailwind-merge": "^2.5.5"
+    "tailwind-merge": "^2.5.5",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
@@ -44,7 +40,6 @@
     "eslint-config-next": "15.2.4",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
-    "tailwindcss-animate": "1.0.7",
     "typescript": "^5"
   }
 }
