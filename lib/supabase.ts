@@ -181,3 +181,4 @@ export async function testSupabaseConnection() {
     }
   }
 }
+export { createClient }
