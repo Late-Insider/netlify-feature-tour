@@ -1,6 +1,4 @@
 {
-  "packageManager": "npm@8.19.0"
-}{
   "name": "late-brand-website",
   "version": "0.1.0",
   "private": true,
