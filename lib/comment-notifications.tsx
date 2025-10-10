@@ -16,6 +16,7 @@ export async function processNewComment(data: CommentData): Promise<boolean> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
   try {
+    // Send thank you email to commenter
     const thankYouContent = `
       <p>Hi ${commenterName},</p>
       <p>Thank you for commenting on "<strong>${articleTitle}</strong>".</p>
@@ -35,6 +36,7 @@ export async function processNewComment(data: CommentData): Promise<boolean> {
       body: thankYouHtml,
     })
 
+    // Send notification to admin
     const adminContent = `
       <h3>New Comment on Article</h3>
       <p><strong>Article:</strong> ${articleTitle}</p>
@@ -59,5 +61,96 @@ export async function processNewComment(data: CommentData): Promise<boolean> {
   } catch (error) {
     console.error("Error processing comment notification:", error)
     return false
+  }
+}
+
+export async function sendCommentNotification(
+  adminEmail: string,
+  commenterName: string,
+  commenterEmail: string,
+  postTitle: string,
+  commentContent: string,
+  postUrl: string,
+  postType: "blog" | "newsletter",
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const subject = `New ${postType === "blog" ? "Blog" : "Newsletter"} Comment: ${postTitle}`
+
+    const content = `
+      <h2>New Comment Received</h2>
+      <p>Someone left a comment on your ${postType === "blog" ? "blog post" : "newsletter article"}: <strong>${postTitle}</strong></p>
+      
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0;"><strong>From:</strong> ${commenterName} (${commenterEmail})</p>
+        <p style="margin: 10px 0 0 0;"><strong>Comment:</strong></p>
+        <div style="background: white; padding: 15px; border-radius: 4px; margin-top: 10px; white-space: pre-wrap;">
+          ${commentContent}
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${postUrl}" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+          View Comment
+        </a>
+      </div>
+    `
+
+    const htmlBody = await createEmailTemplate(subject, content)
+
+    const result = await sendMicrosoftGraphEmail({
+      to: adminEmail,
+      subject,
+      body: htmlBody,
+    })
+
+    return result
+  } catch (error) {
+    console.error("Error sending comment notification:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send notification",
+    }
+  }
+}
+
+export async function sendCommentConfirmation(
+  commenterEmail: string,
+  commenterName: string,
+  postTitle: string,
+  postUrl: string,
+  postType: "blog" | "newsletter",
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const subject = "Thanks for your comment!"
+
+    const content = `
+      <h2>Comment Submitted Successfully</h2>
+      <p>Hi ${commenterName},</p>
+      <p>Thank you for leaving a comment on "${postTitle}". We appreciate you taking the time to engage with our content!</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${postUrl}" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+          View Your Comment
+        </a>
+      </div>
+      
+      <p>Want more insights? Subscribe to our newsletter to never miss an article.</p>
+    `
+
+    const htmlBody = await createEmailTemplate(subject, content)
+
+    const result = await sendMicrosoftGraphEmail({
+      to: commenterEmail,
+      subject,
+      body: htmlBody,
+    })
+
+    return result
+  } catch (error) {
+    console.error("Error sending comment confirmation:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send confirmation",
+    }
   }
 }

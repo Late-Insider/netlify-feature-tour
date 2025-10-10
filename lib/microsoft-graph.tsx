@@ -92,6 +92,21 @@ export async function sendMicrosoftGraphEmail(params: EmailParams): Promise<Emai
   }
 }
 
+// Legacy alias for backward compatibility
+export async function sendMicrosoftEmail(
+  recipientEmail: string,
+  subject: string,
+  htmlContent: string,
+  textContent?: string,
+): Promise<boolean> {
+  const result = await sendMicrosoftGraphEmail({
+    to: recipientEmail,
+    subject,
+    body: htmlContent,
+  })
+  return result.success
+}
+
 export async function createEmailTemplate(title: string, content: string): Promise<string> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
