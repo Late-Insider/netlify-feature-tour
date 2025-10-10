@@ -1,4 +1,4 @@
-![Netlify examples](netlify-badge-examples.png)
+<!-- Force fresh deployment -->![Netlify examples](netlify-badge-examples.png)
 
 # Netlify Feature Tour
 
