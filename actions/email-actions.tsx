@@ -1,6 +1,6 @@
 "use server"
 
-import { sendMicrosoftEmail } from "@/lib/microsoft-graph"
+import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
 import { generateUnsubscribeUrl, generateUnsubscribeToken } from "@/lib/unsubscribe"
 import { addSubscriber, addContactSubmission, addCreatorApplication } from "@/lib/db"
 
@@ -14,14 +14,10 @@ interface EmailResult {
 
 const ADMIN_EMAIL = "team@late.ltd"
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
-async function generateUserEmail(category: EmailCategory, email: string): Promise<{ subject: string; body: string }> {
+async function generateUserEmailTemplate(
+  category: EmailCategory,
+  email: string,
+): Promise<{ subject: string; body: string }> {
   const marketingCategories: EmailCategory[] = ["newsletter", "shop", "podcast", "auction-collector"]
   const unsubscribeUrl = marketingCategories.includes(category) ? await generateUnsubscribeUrl(email, category) : ""
 
@@ -38,269 +34,191 @@ async function generateUserEmail(category: EmailCategory, email: string): Promis
   const templates = {
     newsletter: {
       subject: "Welcome to the Inner Circle",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to the Inner Circle</h1>
-          </div>
-          <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-              Thank you for subscribing to the LATE newsletter. You're now signed up to receive our weekly insights, stories, and updates directly in your inbox.
-            </p>
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
-              <strong>Stay Late.</strong><br/>
-              The best things are always worth the wait ;)
-            </p>
-            <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
-              – The LATE Team
-            </p>
-            ${unsubscribeFooter}
-          </div>
-        </div>
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thank you for subscribing to the LATE newsletter. You're now signed up to receive our weekly insights, stories, and updates directly in your inbox.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
+          – The LATE Team
+        </p>
+        ${unsubscribeFooter}
       `,
     },
     shop: {
       subject: "You're on the List for The Age of Late",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">You're on the List</h1>
-          </div>
-          <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-              Thank you for your interest! You've been added to our exclusive waitlist and will be the first to know when our new collection drops.
-            </p>
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
-              <strong>Stay Late.</strong><br/>
-              The best things are always worth the wait ;)
-            </p>
-            <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
-              – The LATE Team
-            </p>
-            ${unsubscribeFooter}
-          </div>
-        </div>
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thank you for your interest! You've been added to our exclusive waitlist and will be the first to know when our new collection drops.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
+          – The LATE Team
+        </p>
+        ${unsubscribeFooter}
       `,
     },
     podcast: {
       subject: "Get Ready to Listen",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Get Ready to Listen</h1>
-          </div>
-          <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-              Thanks for signing up! We'll send you a notification as soon as our first episodes of 'Left Righteously' are released. Prepare for a thought-provoking listen.
-            </p>
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
-              <strong>Stay Late.</strong><br/>
-              The best things are always worth the wait ;)
-            </p>
-            <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
-              – The LATE Team
-            </p>
-            ${unsubscribeFooter}
-          </div>
-        </div>
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thanks for signing up! We'll send you a notification as soon as our first episodes of 'Left Righteously' are released. Prepare for a thought-provoking listen.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
+          – The LATE Team
+        </p>
+        ${unsubscribeFooter}
       `,
     },
     "auction-collector": {
       subject: "Welcome to The LATE Auction Waitlist",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to The Auction</h1>
-          </div>
-          <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-              You're on the list! Thank you for joining the LATE Auction Waitlist. You'll receive an exclusive early access link before our next auction goes live.
-            </p>
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
-              <strong>Stay Late.</strong><br/>
-              The best things are always worth the wait ;)
-            </p>
-            <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
-              – The LATE Team
-            </p>
-            ${unsubscribeFooter}
-          </div>
-        </div>
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          You're on the list! Thank you for joining the LATE Auction Waitlist. You'll receive an exclusive early access link before our next auction goes live.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
+          – The LATE Team
+        </p>
+        ${unsubscribeFooter}
       `,
     },
     "auction-creator": {
       subject: "Your LATE Auction Application is Received",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Application Received</h1>
-          </div>
-          <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-              Thank you for your application! We appreciate your interest in collaborating with us. Our team is reviewing your submission and will be in touch soon.
-            </p>
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
-              <strong>Stay Late.</strong><br/>
-              The best things are always worth the wait ;)
-            </p>
-            <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
-              – The LATE Team
-            </p>
-          </div>
-        </div>
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thank you for your application! We appreciate your interest in collaborating with us. Our team is reviewing your submission and will be in touch soon.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+          – The LATE Team
+        </p>
       `,
     },
     contact: {
       subject: "We've Received Your Message",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Message Received!</h1>
-          </div>
-          <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-              Thank you for reaching out to LATE. We appreciate you getting in touch and will respond as soon as possible.
-            </p>
-            <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
-              <strong>Stay Late.</strong><br/>
-              The best things are always worth the wait ;)
-            </p>
-            <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
-              – The LATE Team
-            </p>
-          </div>
-        </div>
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thank you for reaching out to LATE. We appreciate you getting in touch and will respond as soon as possible.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+          – The LATE Team
+        </p>
       `,
     },
   }
 
-  return templates[category]
+  const template = templates[category]
+  const body = await createEmailTemplate(template.subject, template.content)
+
+  return {
+    subject: template.subject,
+    body,
+  }
 }
 
-function generateAdminEmail(
+function generateAdminEmailContent(
   category: EmailCategory,
   email: string,
   additionalData?: any,
-): { subject: string; body: string } {
+): { subject: string; content: string } {
   const templates = {
     newsletter: {
       subject: "📬 New Newsletter Subscriber",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: #1f2937; padding: 30px; border-radius: 10px 10px 0 0;">
-            <h2 style="color: white; margin: 0;">📬 New Newsletter Subscriber</h2>
-          </div>
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
-              A new user has subscribed to the weekly newsletter.
-            </p>
-            <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
-              <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-          </div>
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new user has subscribed to the weekly newsletter.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
         </div>
       `,
     },
     shop: {
       subject: "🛍️ New Waitlist Signup: The Age of Late Collection",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: #1f2937; padding: 30px; border-radius: 10px 10px 0 0;">
-            <h2 style="color: white; margin: 0;">🛍️ New Shop Waitlist Signup</h2>
-          </div>
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
-              A new user has joined the waitlist for The Age of Late collection.
-            </p>
-            <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
-              <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-          </div>
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new user has joined the waitlist for The Age of Late collection.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
         </div>
       `,
     },
     podcast: {
       subject: "🎧 New Podcast Subscriber",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: #1f2937; padding: 30px; border-radius: 10px 10px 0 0;">
-            <h2 style="color: white; margin: 0;">🎧 New Podcast Subscriber</h2>
-          </div>
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
-              A new listener has subscribed for notifications on the 'Left Righteously' series.
-            </p>
-            <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
-              <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-          </div>
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new listener has subscribed for notifications on the 'Left Righteously' series.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
         </div>
       `,
     },
     "auction-collector": {
       subject: "🎨 New Auction Collector",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: #1f2937; padding: 30px; border-radius: 10px 10px 0 0;">
-            <h2 style="color: white; margin: 0;">🎨 New Auction Collector</h2>
-          </div>
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
-              A new collector has joined the LATE Auction waitlist.
-            </p>
-            <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
-              <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-          </div>
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new collector has joined the LATE Auction waitlist.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
         </div>
       `,
     },
     "auction-creator": {
       subject: "✍️ NEW CREATOR APPLICATION RECEIVED",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: #1f2937; padding: 30px; border-radius: 10px 10px 0 0;">
-            <h2 style="color: white; margin: 0;">✍️ NEW CREATOR APPLICATION RECEIVED</h2>
-          </div>
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
-              A new creator has submitted an application for the LATE Auction.
-            </p>
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 5px; margin-top: 20px;">
-              <p style="margin: 5px 0; color: #374151;"><strong>Applicant Name:</strong> ${additionalData?.name || "N/A"}</p>
-              <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 5px 0; color: #374151;"><strong>Portfolio URL:</strong> ${additionalData?.portfolio || "N/A"}</p>
-              <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Application Details:</strong></p>
-              <div style="margin: 5px 0; color: #374151; white-space: pre-wrap; background: white; padding: 15px; border-radius: 5px; border: 1px solid #e5e7eb;">${additionalData?.message || "N/A"}</div>
-              <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Submission Date:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-          </div>
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new creator has submitted an application for the LATE Auction.
+        </p>
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 5px 0; color: #374151;"><strong>Applicant Name:</strong> ${additionalData?.name || "N/A"}</p>
+          <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0; color: #374151;"><strong>Portfolio URL:</strong> ${additionalData?.portfolio || "N/A"}</p>
+          <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Application Details:</strong></p>
+          <div style="margin: 5px 0; color: #374151; white-space: pre-wrap; background: white; padding: 15px; border-radius: 5px; border: 1px solid #e5e7eb;">${additionalData?.message || "N/A"}</div>
+          <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Submission Date:</strong> ${new Date().toLocaleString()}</p>
         </div>
       `,
     },
     contact: {
       subject: "📥 New Contact Form Submission",
-      body: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: #1f2937; padding: 30px; border-radius: 10px 10px 0 0;">
-            <h2 style="color: white; margin: 0;">📥 New Contact Form Submission</h2>
-          </div>
-          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
-              You have a new message from the website contact form.
-            </p>
-            <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
-              <p style="margin: 5px 0; color: #374151;"><strong>From:</strong> ${additionalData?.name || "N/A"}</p>
-              <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Message:</strong></p>
-              <div style="margin: 5px 0; color: #374151; white-space: pre-wrap;">${additionalData?.message || "N/A"}</div>
-              <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-          </div>
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          You have a new message from the website contact form.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 5px 0; color: #374151;"><strong>From:</strong> ${additionalData?.name || "N/A"}</p>
+          <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Message:</strong></p>
+          <div style="margin: 5px 0; color: #374151; white-space: pre-wrap;">${additionalData?.message || "N/A"}</div>
+          <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
         </div>
       `,
     },
@@ -318,10 +236,8 @@ async function handleSubscription(email: string, category: EmailCategory): Promi
       }
     }
 
-    // Generate unsubscribe token
     const unsubscribeToken = generateUnsubscribeToken(email, category)
 
-    // Add to database with token
     const dbResult = await addSubscriber({ email, category, unsubscribeToken })
     if (!dbResult.success) {
       return {
@@ -330,22 +246,24 @@ async function handleSubscription(email: string, category: EmailCategory): Promi
       }
     }
 
-    // Send user confirmation
-    const userTemplate = await generateUserEmail(category, email)
-    const userResult = await sendMicrosoftEmail(
-      email,
-      userTemplate.subject,
-      userTemplate.body,
-      stripHtml(userTemplate.body),
-    )
+    const userTemplate = await generateUserEmailTemplate(category, email)
+    const userResult = await sendMicrosoftGraphEmail({
+      to: email,
+      subject: userTemplate.subject,
+      body: userTemplate.body,
+    })
 
     if (!userResult.success) {
       console.error("Failed to send user email:", userResult.error)
     }
 
-    // Send admin notification
-    const adminTemplate = generateAdminEmail(category, email)
-    await sendMicrosoftEmail(ADMIN_EMAIL, adminTemplate.subject, adminTemplate.body, stripHtml(adminTemplate.body))
+    const adminTemplate = generateAdminEmailContent(category, email)
+    const adminBody = await createEmailTemplate(adminTemplate.subject, adminTemplate.content)
+    await sendMicrosoftGraphEmail({
+      to: ADMIN_EMAIL,
+      subject: adminTemplate.subject,
+      body: adminBody,
+    })
 
     return {
       success: true,
@@ -402,7 +320,6 @@ export async function subscribeToAuctionCreator(formData: FormData): Promise<Ema
       }
     }
 
-    // Add to database
     const dbResult = await addCreatorApplication({
       name,
       email,
@@ -417,18 +334,20 @@ export async function subscribeToAuctionCreator(formData: FormData): Promise<Ema
       }
     }
 
-    // Send user confirmation
-    const userTemplate = await generateUserEmail("auction-creator", email)
-    const userResult = await sendMicrosoftEmail(
-      email,
-      userTemplate.subject,
-      userTemplate.body,
-      stripHtml(userTemplate.body),
-    )
+    const userTemplate = await generateUserEmailTemplate("auction-creator", email)
+    const userResult = await sendMicrosoftGraphEmail({
+      to: email,
+      subject: userTemplate.subject,
+      body: userTemplate.body,
+    })
 
-    // Send admin notification with full details
-    const adminTemplate = generateAdminEmail("auction-creator", email, { name, portfolio, message })
-    await sendMicrosoftEmail(ADMIN_EMAIL, adminTemplate.subject, adminTemplate.body, stripHtml(adminTemplate.body))
+    const adminTemplate = generateAdminEmailContent("auction-creator", email, { name, portfolio, message })
+    const adminBody = await createEmailTemplate(adminTemplate.subject, adminTemplate.content)
+    await sendMicrosoftGraphEmail({
+      to: ADMIN_EMAIL,
+      subject: adminTemplate.subject,
+      body: adminBody,
+    })
 
     return {
       success: true,
@@ -464,7 +383,6 @@ export async function handleContactForm(formData: FormData): Promise<EmailResult
       }
     }
 
-    // Add to database
     const dbResult = await addContactSubmission({ name, email, message })
     if (!dbResult.success) {
       return {
@@ -473,18 +391,20 @@ export async function handleContactForm(formData: FormData): Promise<EmailResult
       }
     }
 
-    // Send user confirmation
-    const userTemplate = await generateUserEmail("contact", email)
-    const userResult = await sendMicrosoftEmail(
-      email,
-      userTemplate.subject,
-      userTemplate.body,
-      stripHtml(userTemplate.body),
-    )
+    const userTemplate = await generateUserEmailTemplate("contact", email)
+    const userResult = await sendMicrosoftGraphEmail({
+      to: email,
+      subject: userTemplate.subject,
+      body: userTemplate.body,
+    })
 
-    // Send admin notification with full details
-    const adminTemplate = generateAdminEmail("contact", email, { name, message })
-    await sendMicrosoftEmail(ADMIN_EMAIL, adminTemplate.subject, adminTemplate.body, stripHtml(adminTemplate.body))
+    const adminTemplate = generateAdminEmailContent("contact", email, { name, message })
+    const adminBody = await createEmailTemplate(adminTemplate.subject, adminTemplate.content)
+    await sendMicrosoftGraphEmail({
+      to: ADMIN_EMAIL,
+      subject: adminTemplate.subject,
+      body: adminBody,
+    })
 
     return {
       success: true,
@@ -500,7 +420,6 @@ export async function handleContactForm(formData: FormData): Promise<EmailResult
   }
 }
 
-// Legacy compatibility
 export async function handleNewsletterSubscription(formData: FormData): Promise<EmailResult> {
   return subscribeToNewsletter(formData)
 }
