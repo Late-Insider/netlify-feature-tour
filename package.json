@@ -1,4 +1,7 @@
 {
+  "dependencies": {
+    "@radix-ui/react-tabs": "^1.0.0",
+}{
   "name": "late-brand-website",
   "version": "0.1.0",
   "private": true,
