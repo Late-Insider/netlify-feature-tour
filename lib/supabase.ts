@@ -1,29 +1,4 @@
-export async function testSupabaseConnection() {
-  try {
-    // Simple test query
-    const { data, error } = await supabase.from('subscribers').select('count').limit(1);
-    
-    if (error) {
-      return { 
-        success: false, 
-        error: error.message,
-        connected: false
-      };
-    }
-    
-    return { 
-      success: true, 
-      message: 'Supabase connection successful',
-      connected: true
-    };
-  } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error',
-      connected: false
-    };
-  }
-}import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
