@@ -1,42 +1,51 @@
-"use client"
-
 import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 
-interface RelatedPost {
-  slug: string
+interface BlogPost {
+  id: number
   title: string
   excerpt: string
-  date: string
+  slug: string
 }
 
 interface RelatedPostsProps {
-  posts: RelatedPost[]
-  currentSlug: string
+  currentPostId: number
+  posts: BlogPost[]
+  maxPosts?: number
 }
 
-export function RelatedPosts({ posts, currentSlug }: RelatedPostsProps) {
-  const relatedPosts = posts.filter((post) => post.slug !== currentSlug).slice(0, 3)
+export default function RelatedPosts({ currentPostId, posts, maxPosts = 3 }: RelatedPostsProps) {
+  // Filter out the current post and get a limited number of related posts
+  const relatedPosts = posts.filter((post) => post.id !== currentPostId).slice(0, maxPosts)
 
-  if (relatedPosts.length === 0) return null
+  if (relatedPosts.length === 0) {
+    return null
+  }
 
   return (
-    <section className="mt-16 pt-16 border-t border-zinc-800">
-      <h2 className="text-2xl font-bold mb-8">Related Articles</h2>
-      <div className="grid md:grid-cols-3 gap-6">
+    <div className="mt-16 pt-8 border-t border-gray-200 dark:border-zinc-800">
+      <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Related Posts</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {relatedPosts.map((post) => (
-          <Link
-            key={post.slug}
-            href={`/newsletter/${post.slug}`}
-            className="group block bg-zinc-900 border border-zinc-800 rounded-lg p-6 hover:border-purple-500 transition-all"
+          <div
+            key={post.id}
+            className="bg-gray-50 dark:bg-zinc-800 rounded-lg overflow-hidden hover:bg-gray-100 dark:hover:bg-zinc-700 transition-all duration-300"
           >
-            <h3 className="font-semibold mb-2 group-hover:text-purple-400 transition-colors">{post.title}</h3>
-            <p className="text-sm text-zinc-400 mb-3 line-clamp-2">{post.excerpt}</p>
-            <p className="text-xs text-zinc-500">{post.date}</p>
-          </Link>
+            <div className="p-5">
+              <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">{post.title}</h3>
+              <p className="text-gray-600 dark:text-zinc-400 text-sm mb-3 line-clamp-2">{post.excerpt}</p>
+              <Link
+                href={`/blog/${post.slug}`}
+                className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors text-sm group"
+              >
+                Read More
+                <ArrowRight className="ml-1 w-3 h-3 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+            </div>
+          </div>
         ))}
       </div>
-    </section>
+    </div>
   )
 }
-
-export default RelatedPosts

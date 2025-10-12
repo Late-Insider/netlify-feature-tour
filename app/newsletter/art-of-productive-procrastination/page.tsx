@@ -1,71 +1,67 @@
+import type { Metadata } from "next"
+import { NewsletterClientPage } from "../[slug]/client-page"
+import { ArrowLeft, Calendar, Clock } from "lucide-react"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
-import { NewsletterReactions } from "@/components/newsletter-reactions"
-import { NewsletterComments } from "@/components/newsletter-comments"
+import SocialShare from "@/components/social-share"
 
-export default function ProductiveProcrastinationPage() {
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: "The Art of Productive Procrastination | LATE Weekly Insights",
+    description:
+      "Discover how strategic delays can lead to better outcomes and more authentic decisions in this week's LATE perspective.",
+    openGraph: {
+      title: "The Art of Productive Procrastination | LATE Weekly Insights",
+      description:
+        "Discover how strategic delays can lead to better outcomes and more authentic decisions in this week's LATE perspective.",
+      type: "article",
+      publishedTime: "2025-09-14T00:00:00.000Z",
+    },
+  }
+}
+
+export default function ArtOfProductiveProcrastinationPage() {
   return (
-    <main className="min-h-screen bg-black text-white py-24 px-6">
-      <article className="max-w-3xl mx-auto">
-        <Link href="/newsletter" className="inline-flex items-center text-purple-400 hover:text-purple-300 mb-8">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Newsletter
-        </Link>
-
+    <div className="min-h-screen bg-white dark:bg-black">
+      <NewsletterClientPage params={{ slug: "art-of-productive-procrastination" }}>
+        {/* Header */}
         <header className="mb-12">
-          <time className="text-sm text-zinc-500">September 14, 2025</time>
-          <h1 className="text-4xl md:text-5xl font-bold mt-2 mb-4">The Art of Productive Procrastination</h1>
-          <p className="text-xl text-zinc-400">Why strategic delay can be your secret weapon for better decisions</p>
+          <Link
+            href="/newsletter"
+            className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors mb-8"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Weekly Insights
+          </Link>
+
+          <div className="mb-6">
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-zinc-400 mb-4">
+              <div className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                September 14, 2025
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock className="w-4 h-4" />6 min read
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+              The Art of Productive Procrastination
+            </h1>
+            <p className="text-xl text-gray-600 dark:text-zinc-400 leading-relaxed">
+              Discover how strategic procrastination can become your secret weapon for better decision-making and
+              creative breakthroughs.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-b border-gray-200 dark:border-zinc-800 py-4">
+            <div className="text-sm text-gray-500 dark:text-zinc-500">LATE Weekly Insights</div>
+            <SocialShare
+              url={`https://late.ltd/newsletter/art-of-productive-procrastination`}
+              title="The Art of Productive Procrastination"
+              description="Discover how strategic procrastination can become your secret weapon for better decision-making and creative breakthroughs."
+            />
+          </div>
         </header>
-
-        <div className="prose prose-invert prose-lg max-w-none">
-          <p>
-            We've been taught that procrastination is the enemy of productivity. But what if that's not entirely true?
-            What if there's a form of procrastination that actually enhances your work and decision-making?
-          </p>
-
-          <h2>The Two Types of Procrastination</h2>
-          <p>
-            Not all procrastination is created equal. There's passive procrastination—the kind where you mindlessly
-            scroll social media instead of working. Then there's active procrastination—strategic delay that allows your
-            subconscious mind to process complex problems.
-          </p>
-
-          <p>
-            Active procrastinators don't avoid work; they redirect their energy toward different tasks while their mind
-            works on the main problem in the background.
-          </p>
-
-          <h2>The Incubation Effect</h2>
-          <p>
-            Psychologists have documented the "incubation effect"—the phenomenon where stepping away from a problem
-            leads to better solutions. When you stop consciously thinking about something, your brain doesn't stop
-            working on it. It just moves the processing to a different, often more creative part of your mind.
-          </p>
-
-          <h2>Strategic Implementation</h2>
-          <p>Here's how to use productive procrastination:</p>
-
-          <ul>
-            <li>Identify problems that benefit from incubation (creative or complex decisions)</li>
-            <li>Set a specific time to return to the problem</li>
-            <li>Work on related but different tasks during the delay</li>
-            <li>Capture insights when they emerge spontaneously</li>
-            <li>Trust the process—anxiety about procrastinating defeats its purpose</li>
-          </ul>
-
-          <h2>When NOT to Procrastinate</h2>
-          <p>
-            This strategy doesn't work for everything. Simple, straightforward tasks benefit from immediate action. The
-            magic happens with complex problems that require insight and synthesis.
-          </p>
-
-          <p>The key is discernment: knowing when to push forward and when to strategically step back.</p>
-        </div>
-
-        <NewsletterReactions />
-        <NewsletterComments />
-      </article>
-    </main>
+      </NewsletterClientPage>
+    </div>
   )
 }

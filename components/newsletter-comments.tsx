@@ -2,68 +2,135 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { MessageCircle, Send, User } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 
 interface Comment {
-  id: number
-  author: string
+  id: string
+  name: string
   content: string
-  date: string
+  timestamp: string
 }
 
-export function NewsletterComments() {
-  const [comments] = useState<Comment[]>([
-    {
-      id: 1,
-      author: "Sarah M.",
-      content: "This really resonated with me. Thank you for sharing!",
-      date: "2 days ago",
-    },
-    {
-      id: 2,
-      author: "John D.",
-      content: "Excellent insights. Looking forward to implementing these ideas.",
-      date: "3 days ago",
-    },
-  ])
+interface NewsletterCommentsProps {
+  newsletterId: number
+}
 
+export default function NewsletterComments({ newsletterId }: NewsletterCommentsProps) {
+  const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
+  const [userName, setUserName] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Load comments from localStorage on component mount
+  useEffect(() => {
+    const savedComments = localStorage.getItem(`newsletter-comments-${newsletterId}`)
+    if (savedComments) {
+      setComments(JSON.parse(savedComments))
+    }
+
+    // Load saved user name
+    const savedUserName = localStorage.getItem("user-name")
+    if (savedUserName) {
+      setUserName(savedUserName)
+    }
+  }, [newsletterId])
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle comment submission
+    if (!newComment.trim() || !userName.trim()) return
+
+    setIsSubmitting(true)
+
+    const comment: Comment = {
+      id: Date.now().toString(),
+      name: userName.trim(),
+      content: newComment.trim(),
+      timestamp: new Date().toISOString(),
+    }
+
+    const updatedComments = [comment, ...comments]
+    setComments(updatedComments)
+    localStorage.setItem(`newsletter-comments-${newsletterId}`, JSON.stringify(updatedComments))
+    localStorage.setItem("user-name", userName.trim())
+
     setNewComment("")
+    setIsSubmitting(false)
+  }
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+
+    if (diffInHours < 1) return "Just now"
+    if (diffInHours < 24) return `${diffInHours}h ago`
+    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
+    return date.toLocaleDateString()
   }
 
   return (
-    <div className="mt-16 border-t border-zinc-800 pt-8">
-      <h3 className="text-2xl font-bold mb-6">Comments</h3>
+    <div className="mt-12 pt-8 border-t border-zinc-800">
+      <div className="flex items-center gap-2 mb-6">
+        <MessageCircle className="w-5 h-5 text-purple-400" />
+        <h3 className="text-lg font-semibold text-white">Comments ({comments.length})</h3>
+      </div>
 
-      <form onSubmit={handleSubmit} className="mb-8">
-        <textarea
+      {/* Comment Form */}
+      <form onSubmit={handleSubmitComment} className="mb-8 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            type="text"
+            placeholder="Your name"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            required
+            className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
+          />
+        </div>
+        <Textarea
+          placeholder="Share your thoughts on this insight..."
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Share your thoughts..."
-          className="w-full px-4 py-3 bg-black border border-zinc-800 rounded-lg focus:outline-none focus:border-purple-500 min-h-[100px]"
+          required
+          rows={3}
+          className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
         />
-        <button
+        <Button
           type="submit"
-          className="mt-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+          disabled={isSubmitting || !newComment.trim() || !userName.trim()}
+          className="bg-purple-600 hover:bg-purple-700 text-white"
         >
-          Post Comment
-        </button>
+          <Send className="w-4 h-4 mr-2" />
+          {isSubmitting ? "Posting..." : "Post Comment"}
+        </Button>
       </form>
 
+      {/* Comments List */}
       <div className="space-y-6">
-        {comments.map((comment) => (
-          <div key={comment.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-            <div className="flex items-start justify-between mb-2">
-              <span className="font-semibold">{comment.author}</span>
-              <span className="text-xs text-zinc-500">{comment.date}</span>
+        {comments.length === 0 ? (
+          <p className="text-zinc-400 text-center py-8">Be the first to share your thoughts on this insight.</p>
+        ) : (
+          comments.map((comment) => (
+            <div key={comment.id} className="bg-zinc-800/50 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-purple-600 rounded-full p-2 flex-shrink-0">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-medium text-white">{comment.name}</span>
+                    <span className="text-sm text-zinc-500">{formatTimestamp(comment.timestamp)}</span>
+                  </div>
+                  <p className="text-zinc-300 leading-relaxed">{comment.content}</p>
+                </div>
+              </div>
             </div>
-            <p className="text-zinc-400">{comment.content}</p>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   )

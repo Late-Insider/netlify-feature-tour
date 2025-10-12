@@ -1,26 +1,23 @@
-"use client"
+// This is just an explanation file, not actual code
 
-export function EmailConfirmationExplanation() {
-  return (
-    <div className="max-w-2xl mx-auto my-12 p-8 bg-zinc-900 border border-zinc-800 rounded-lg">
-      <h2 className="text-2xl font-bold mb-4">About Email Confirmation</h2>
-      <div className="space-y-4 text-zinc-400">
-        <p>When you submit a comment, we send two emails:</p>
-        <ol className="list-decimal list-inside space-y-2 ml-4">
-          <li>
-            <strong className="text-white">To You:</strong> A thank you message with your comment and an invitation to
-            subscribe to our newsletter
-          </li>
-          <li>
-            <strong className="text-white">To Admin:</strong> A notification about your new comment so we can respond
-            quickly
-          </li>
-        </ol>
-        <p className="pt-4">
-          This system ensures you get immediate confirmation and we can engage with your thoughts promptly. Your email
-          is never shared with third parties.
-        </p>
-      </div>
-    </div>
-  )
-}
+// The email confirmation system works as follows:
+
+// 1. When a user submits a form (in any section), the form calls the handleFormSubmission function:
+//    - This is set up in all form components (BookSection, ShopTeaser, PodcastSection, etc.)
+//    - The auction waitlist form also uses this function
+
+// 2. The handleFormSubmission function in actions/email-actions.ts:
+//    - Processes the form data
+//    - Submits the data to Formspree (which sends you a notification)
+//    - Calls sendConfirmationEmail to send an email to the visitor
+
+// 3. The sendConfirmationEmail function in lib/resend.ts:
+//    - Uses the Resend API (with your RESEND_API_KEY)
+//    - Sends a formatted HTML email to the visitor
+//    - Also CCs contact@late.ltd so you receive a copy
+//    - Uses different templates based on the form type
+
+// The system is fully automated - when someone submits their email:
+// - You get notified via Formspree
+// - You get a CC of the confirmation email
+// - The visitor receives a confirmation email

@@ -1,11 +1,12 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mail, MessageSquare, Palette, UserCheck, Radio, Send, CheckCircle, AlertCircle, RefreshCw } from "lucide-react"
 
 interface EmailStats {
@@ -89,6 +90,7 @@ export default function EmailAutomationPage() {
 
   useEffect(() => {
     fetchStats()
+    // Auto-refresh every 30 seconds
     const interval = setInterval(fetchStats, 30000)
     return () => clearInterval(interval)
   }, [])
@@ -203,9 +205,7 @@ The best things are always worth the wait ;)
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Email Automation Dashboard
-            </h1>
+            <h1 className="text-3xl font-bold mb-2">Email Automation Dashboard</h1>
             <p className="text-zinc-400">Manage email campaigns and subscriber communications</p>
           </div>
           <Button
@@ -219,6 +219,7 @@ The best things are always worth the wait ;)
           </Button>
         </div>
 
+        {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {stats.map((stat, index) => (
             <Card key={index} className="bg-zinc-900 border-zinc-800">
@@ -238,108 +239,109 @@ The best things are always worth the wait ;)
 
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-6">
           <TabsList className="grid grid-cols-3 lg:grid-cols-6 bg-zinc-900">
-            <TabsTrigger value="newsletter">
+            <TabsTrigger value="newsletter" className="data-[state=active]:bg-blue-600">
               <Mail className="w-4 h-4 mr-2" />
               Newsletter
             </TabsTrigger>
-            <TabsTrigger value="shop">
+            <TabsTrigger value="shop" className="data-[state=active]:bg-green-600">
               <Radio className="w-4 h-4 mr-2" />
               Shop
             </TabsTrigger>
-            <TabsTrigger value="podcast">
+            <TabsTrigger value="podcast" className="data-[state=active]:bg-red-600">
               <Radio className="w-4 h-4 mr-2" />
               Podcast
             </TabsTrigger>
-            <TabsTrigger value="auction-collector">
+            <TabsTrigger value="auction-collector" className="data-[state=active]:bg-purple-600">
               <UserCheck className="w-4 h-4 mr-2" />
               Collectors
             </TabsTrigger>
-            <TabsTrigger value="auction-creator">
+            <TabsTrigger value="auction-creator" className="data-[state=active]:bg-pink-600">
               <Palette className="w-4 h-4 mr-2" />
               Creators
             </TabsTrigger>
-            <TabsTrigger value="contact">
+            <TabsTrigger value="contact" className="data-[state=active]:bg-orange-600">
               <MessageSquare className="w-4 h-4 mr-2" />
               Contact
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={selectedCategory}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-zinc-900 border-zinc-800">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="w-5 h-5 text-purple-400" />
-                    Email Template Preview
-                  </CardTitle>
-                  <CardDescription>Current autoresponder template for {selectedCategory} subscribers</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-purple-400">Subject Line</label>
-                    <div className="bg-zinc-800 p-3 rounded border border-zinc-700 text-sm">
-                      {currentTemplate.subject}
-                    </div>
+          {/* Email Template Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5" />
+                  Email Template Preview
+                </CardTitle>
+                <CardDescription>Current autoresponder template for {selectedCategory} subscribers</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Subject Line</label>
+                  <div className="bg-zinc-800 p-3 rounded border text-sm">{currentTemplate.subject}</div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Message Content</label>
+                  <div className="bg-zinc-800 p-4 rounded border text-sm whitespace-pre-line max-h-96 overflow-y-auto">
+                    {currentTemplate.content}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-purple-400">Message Content</label>
-                    <div className="bg-zinc-800 p-4 rounded border border-zinc-700 text-sm whitespace-pre-line max-h-96 overflow-y-auto">
-                      {currentTemplate.content}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              <Card className="bg-zinc-900 border-zinc-800">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Send className="w-5 h-5 text-pink-400" />
-                    Test Email
-                  </CardTitle>
-                  <CardDescription>Send a test email to verify the automation is working</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-purple-400">Test Email Address</label>
-                    <Input
-                      type="email"
-                      placeholder="test@example.com"
-                      value={testEmail}
-                      onChange={(e) => setTestEmail(e.target.value)}
-                      className="bg-zinc-800 border-zinc-700"
-                    />
-                  </div>
-                  <Button onClick={handleSendTestEmail} disabled={isLoading || !testEmail} className="w-full">
-                    {isLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-2" />
-                        Send Test Email
-                      </>
-                    )}
-                  </Button>
-                  {result && (
-                    <div
-                      className={`p-3 rounded border ${
-                        result.success
-                          ? "bg-green-900/20 border-green-500 text-green-400"
-                          : "bg-red-900/20 border-red-500 text-red-400"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {result.success ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                        <span className="text-sm">{result.message}</span>
-                      </div>
-                    </div>
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Send className="w-5 h-5" />
+                  Test Email
+                </CardTitle>
+                <CardDescription>Send a test email to verify the automation is working</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Test Email Address</label>
+                  <Input
+                    type="email"
+                    placeholder="test@example.com"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="bg-zinc-800 border-zinc-700"
+                  />
+                </div>
+                <Button
+                  onClick={handleSendTestEmail}
+                  disabled={isLoading || !testEmail}
+                  className="w-full bg-purple-600 hover:bg-purple-700"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Test Email
+                    </>
                   )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                </Button>
+                {result && (
+                  <div
+                    className={`p-3 rounded border ${
+                      result.success
+                        ? "bg-green-900/20 border-green-500 text-green-400"
+                        : "bg-red-900/20 border-red-500 text-red-400"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {result.success ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                      <span className="text-sm">{result.message}</span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </Tabs>
       </div>
     </div>

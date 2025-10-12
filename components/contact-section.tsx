@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { Mail, Instagram, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,7 +16,7 @@ const XIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-export function ContactSection() {
+export default function ContactSection() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
@@ -225,5 +226,3 @@ export function ContactSection() {
     </section>
   )
 }
-
-export default ContactSection

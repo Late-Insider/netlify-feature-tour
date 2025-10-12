@@ -36,7 +36,7 @@ const faqItems: FaqItem[] = [
   },
 ]
 
-export function FaqSection() {
+export default function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   const toggleFaq = (index: number) => {
@@ -62,9 +62,9 @@ export function FaqSection() {
                 >
                   <span className="font-medium text-gray-900 dark:text-white">{item.question}</span>
                   {openIndex === index ? (
-                    <ChevronUp className="h-5 w-5 text-gray-500 dark:text-zinc-400 flex-shrink-0 ml-4" />
+                    <ChevronUp className="h-5 w-5 text-gray-500 dark:text-zinc-400" />
                   ) : (
-                    <ChevronDown className="h-5 w-5 text-gray-500 dark:text-zinc-400 flex-shrink-0 ml-4" />
+                    <ChevronDown className="h-5 w-5 text-gray-500 dark:text-zinc-400" />
                   )}
                 </button>
 
@@ -84,5 +84,3 @@ export function FaqSection() {
     </section>
   )
 }
-
-export default FaqSection

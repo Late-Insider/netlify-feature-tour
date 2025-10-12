@@ -24,13 +24,12 @@ export async function testSupabaseConnection() {
   }
 }
 
-export async function addSubscriber(email: string, category: string, name?: string) {
+export async function addSubscriber(email: string, source: string) {
   const { data, error } = await supabase
     .from("subscribers")
     .insert({
       email,
-      category,
-      name,
+      source,
       is_active: true,
       subscribed_at: new Date().toISOString(),
     })
@@ -38,23 +37,15 @@ export async function addSubscriber(email: string, category: string, name?: stri
     .single()
 
   if (error) {
-    if (error.code === "23505") {
-      return { success: true, message: "Already subscribed" }
-    }
     console.error("Error adding subscriber:", error)
     throw error
   }
 
-  return { success: true, data }
+  return data
 }
 
-export async function getSubscriberByEmail(email: string, category: string) {
-  const { data, error } = await supabase
-    .from("subscribers")
-    .select("*")
-    .eq("email", email)
-    .eq("category", category)
-    .single()
+export async function getSubscriberByEmail(email: string) {
+  const { data, error } = await supabase.from("subscribers").select("*").eq("email", email).single()
 
   if (error && error.code !== "PGRST116") {
     console.error("Error fetching subscriber:", error)
@@ -64,14 +55,8 @@ export async function getSubscriberByEmail(email: string, category: string) {
   return data
 }
 
-export async function getAllActiveSubscribers(category?: string) {
-  let query = supabase.from("subscribers").select("email, name, category").eq("is_active", true)
-
-  if (category) {
-    query = query.eq("category", category)
-  }
-
-  const { data, error } = await query
+export async function getAllActiveSubscribers() {
+  const { data, error } = await supabase.from("subscribers").select("email, name").eq("is_active", true)
 
   if (error) {
     console.error("Error fetching active subscribers:", error)
@@ -139,8 +124,8 @@ export async function addEmailToQueue(recipientEmail: string, subject: string, h
   return data
 }
 
-export async function getPendingEmails(limit = 50) {
-  const { data, error } = await supabase.from("email_queue").select("*").eq("status", "pending").limit(limit)
+export async function getPendingEmails() {
+  const { data, error } = await supabase.from("email_queue").select("*").eq("status", "pending").limit(50)
 
   if (error) {
     console.error("Error fetching pending emails:", error)
@@ -237,19 +222,4 @@ export async function addContactSubmission(name: string, email: string, message:
   }
 
   return data
-}
-
-export async function getSubscriberCountByCategory(category: string): Promise<number> {
-  const { count, error } = await supabase
-    .from("subscribers")
-    .select("*", { count: "exact", head: true })
-    .eq("category", category)
-    .eq("is_active", true)
-
-  if (error) {
-    console.error("Error getting subscriber count:", error)
-    return 0
-  }
-
-  return count || 0
 }

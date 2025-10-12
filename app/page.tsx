@@ -1,89 +1,126 @@
-import Navbar from "@/components/navbar"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { WeeklyInsights } from "@/components/weekly-insights"
-import { PodcastSection } from "@/components/podcast-section"
-import { ShopTeaser } from "@/components/shop-teaser"
-import { ContactSection } from "@/components/contact-section"
+import Link from "next/link"
+import { ArrowDown } from "lucide-react"
+import WeeklyInsights from "@/components/weekly-insights"
+import ShopTeaser from "@/components/shop-teaser"
+import ContactSection from "@/components/contact-section"
+import PodcastSection from "@/components/podcast-section"
 import FaqSection from "@/components/faq-section"
-import { AuctionWaitlistModal } from "@/components/auction-waitlist-modal"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "LATE - OWN YOUR TIME",
+  description: "Because success isn't about being on time. It's about making an impact when you arrive.",
+  keywords: ["late", "time management", "success", "mindset", "lifestyle"],
+  openGraph: {
+    title: "LATE - OWN YOUR TIME",
+    description: "Because success isn't about being on time. It's about making an impact when you arrive.",
+    url: "https://late.ltd",
+    siteName: "Late",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "LATE - OWN YOUR TIME",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LATE - OWN YOUR TIME",
+    description: "Because success isn't about being on time. It's about making an impact when you arrive.",
+    images: ["/og-image.jpg"],
+  },
+}
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white">
-      <Navbar />
-
+    <main className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 pt-20">
-        <div className="absolute top-4 right-4">
-          <ThemeToggle />
-        </div>
-
-        <div className="text-center space-y-8 max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight">LATE - OWN YOUR TIME</h1>
-          <p className="text-xl md:text-2xl text-gray-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            Redefine success on your own terms. Join a movement that celebrates intentional living and meaningful
-            impact.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <a
-              href="#newsletter"
-              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105"
+      <section id="hero" className="relative h-screen flex items-center justify-center overflow-hidden bg-black">
+        <div className="container mx-auto px-4 z-20">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <h1
+              className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-tight animate-fade-in text-white"
+              style={{ animationDelay: "0.2s" }}
             >
-              Read Weekly Insights
-            </a>
-            <AuctionWaitlistModal />
+              OWN YOUR TIME
+            </h1>
+            <p
+              className="text-xl md:text-2xl text-zinc-300 max-w-2xl mx-auto animate-fade-in"
+              style={{ animationDelay: "0.4s" }}
+            >
+              Because success isn't about being on time. It's about making an impact when you arrive.
+            </p>
+            <div className="pt-6 animate-fade-in" style={{ animationDelay: "0.6s" }}>
+              <Link
+                href="#mission"
+                className="inline-flex items-center gap-2 bg-white text-black px-8 py-3 rounded-full font-medium hover:bg-purple-600 hover:text-white transition-all duration-300 transform hover:scale-105"
+              >
+                Explore
+              </Link>
+            </div>
           </div>
+        </div>
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce z-20">
+          <Link href="#mission" aria-label="Scroll to mission section">
+            <ArrowDown className="w-8 h-8 text-white/70" />
+          </Link>
         </div>
       </section>
 
       {/* Mission Section */}
-      <section id="mission" className="py-24 px-4 bg-gray-50 dark:bg-zinc-900">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
-          <h2 className="text-4xl md:text-5xl font-bold">Our Mission</h2>
-          <p className="text-lg md:text-xl text-gray-600 dark:text-zinc-400 leading-relaxed">
-            At LATE, we believe that being "late" isn't about missing deadlines—it's about taking the time to do things
-            right. We're building a community that values quality over speed, depth over superficiality, and impact over
-            mere productivity.
-          </p>
-          <div className="grid md:grid-cols-3 gap-8 mt-12">
-            <div className="p-6 bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-zinc-800">
-              <h3 className="text-xl font-bold mb-3">Intentional Living</h3>
-              <p className="text-gray-600 dark:text-zinc-400">
-                Make every moment count by being present and purposeful in your actions.
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-zinc-800">
-              <h3 className="text-xl font-bold mb-3">Authentic Growth</h3>
-              <p className="text-gray-600 dark:text-zinc-400">
-                Grow at your own pace, focusing on sustainable progress that aligns with your values.
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-zinc-800">
-              <h3 className="text-xl font-bold mb-3">Meaningful Impact</h3>
-              <p className="text-gray-600 dark:text-zinc-400">
-                Create lasting change by prioritizing quality and depth in everything you do.
-              </p>
+      <section id="mission" className="py-24 md:py-32 bg-zinc-900">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-4xl md:text-5xl font-bold mb-8 text-white">Our Mission</h2>
+            <p className="text-xl md:text-2xl text-zinc-300 mb-16 leading-relaxed">
+              At LATE, we're on a mission to redefine success and empower individuals to thrive on their own timelines.
+              We believe that true achievement comes not from racing against the clock, but from making a meaningful
+              impact when the moment is right.
+            </p>
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="bg-zinc-800 p-8 rounded-lg transform transition-all duration-300 hover:scale-105 hover:bg-zinc-700">
+                <h3 className="text-2xl font-bold mb-4 text-purple-400">Embrace Your Pace</h3>
+                <p className="text-zinc-300">
+                  We encourage you to move at a rhythm that feels authentic to you, free from the pressure of arbitrary
+                  deadlines.
+                </p>
+              </div>
+              <div className="bg-zinc-800 p-8 rounded-lg transform transition-all duration-300 hover:scale-105 hover:bg-zinc-700">
+                <h3 className="text-2xl font-bold mb-4 text-purple-400">Quality Over Speed</h3>
+                <p className="text-zinc-300">
+                  We value thoughtful progress and meaningful outcomes over rushed results and empty achievements.
+                </p>
+              </div>
+              <div className="bg-zinc-800 p-8 rounded-lg transform transition-all duration-300 hover:scale-105 hover:bg-zinc-700">
+                <h3 className="text-2xl font-bold mb-4 text-purple-400">Redefine Success</h3>
+                <p className="text-zinc-300">
+                  We're here to challenge conventional notions of success and help you create a life that aligns with
+                  your true values.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Weekly Insights Section */}
-      <section id="newsletter" className="py-24 px-4">
-        <WeeklyInsights />
-      </section>
-
-      {/* Podcast Section */}
-      <PodcastSection />
+      {/* Weekly Insights Section - Shows Latest Article Only */}
+      <WeeklyInsights />
 
       {/* Shop Section */}
       <ShopTeaser />
+
+      {/* Podcast Section */}
+      <PodcastSection />
 
       {/* FAQ Section */}
       <FaqSection />
 
       {/* Contact Section */}
       <ContactSection />
-    </div>
+    </main>
   )
 }
