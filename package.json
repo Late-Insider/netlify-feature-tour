@@ -16,7 +16,6 @@
     "@radix-ui/react-label": "2.1.1",
     "@radix-ui/react-slot": "1.1.1",
     "@radix-ui/react-switch": "1.1.2",
-    "@radix-ui/react-tabs": "latest",
     "@radix-ui/react-toast": "1.2.4",
     "@supabase/supabase-js": "latest",
     "@vercel/postgres": "latest",
@@ -32,11 +31,12 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.1",
+    "eslint": "^8",
     "eslint-config-next": "15.2.4",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
