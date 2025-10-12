@@ -1,47 +1,107 @@
-<!-- Force fresh deployment -->![Netlify examples](netlify-badge-examples.png)
+# Late Website - Complete Next.js Project
 
-# Netlify Feature Tour
+A complete Next.js application with Supabase backend, TypeScript types, and custom UI components.
 
-**Access this demo site**: https://feature-tour.netlify.app
+## Features
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/fad6792e-1c44-44db-bd79-ea74b42b0f89/deploy-status)](https://app.netlify.com/sites/feature-tour/deploys)
+- ✅ Complete SQL schema for all tables
+- ✅ TypeScript types matching database schema
+- ✅ Next.js API routes for all operations
+- ✅ Custom UI components (tabs, tables, stats cards)
+- ✅ Environment variable validation
+- ✅ Full CRUD operations
+- ✅ Analytics tracking
+- ✅ Email queue system
+- ✅ Admin dashboard
 
-## About this example site
+## Prerequisites
 
-This site provides a path to get started learning about Netlify features.
+- Node.js 18+ and npm
+- Supabase account with project set up
+- Environment variables configured
 
-- 📚 [Docs Getting Started Tutorial](https://docs.netlify.com/get-started/?utm_medium=social&utm_source=github&utm_campaign=devex-ph&utm_content=devex-examples)
+## Installation
 
-## Speedily deploy your own version
+1. Clone the repository
+2. Install dependencies:
 
-Deploy your own version of this example site by selecting the Deploy to Netlify Button below. This will automatically:
-
-- Clone a copy of this repo to your own GitHub account
-- Create a new project in your [Netlify account](https://app.netlify.com/?utm_medium=social&utm_source=github&utm_campaign=devex&utm_content=devex-examples), linked to your new repo
-- Create an automated deployment pipeline to watch for changes on your repo
-- Build and deploy your new site
-
-[![Deploy To Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/netlify/netlify-feature-tour&utm_medium=social&utm_source=github&utm_campaign=devex&utm_content=devex-examples)
-
-## Install and run this example locally
-
-You can clone this example repo to explore its features and implementation and to run it locally.
-
-```shell
-
-# 1. Clone the repository to your local development environment
-git clone git@github.com:netlify/feature-tour.git
-
-# 2. Move into the project directory
-cd feature-tour
-
-# 3. Install code dependencies
+\`\`\`bash
 npm install
+\`\`\`
 
-# 4. Install the Netlify CLI to let you locally serve your site using Netlify's features
-npm install -g netlify-cli
+3. Set up environment variables (copy `.env.example` to `.env.local`):
 
-# 5. Serve your site using Netlify Dev
-netlify dev
+\`\`\`bash
+cp .env.example .env.local
+\`\`\`
 
-```
+4. Run the SQL schema in your Supabase SQL editor:
+
+\`\`\`bash
+# Copy contents of scripts/complete-schema.sql to Supabase SQL editor
+\`\`\`
+
+5. Run the development server:
+
+\`\`\`bash
+npm run dev
+\`\`\`
+
+6. Open [http://localhost:3000](http://localhost:3000)
+
+## Database Setup
+
+1. Go to your Supabase project
+2. Navigate to SQL Editor
+3. Execute the complete schema from `scripts/complete-schema.sql`
+4. Verify all tables are created
+
+## Environment Variables
+
+### Required
+
+- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
+- `POSTGRES_URL` - Postgres connection string
+- `DATABASE_URL` - Database URL
+- `CRON_SECRET` - Secret for cron job authentication
+
+### Optional
+
+- `MICROSOFT_CLIENT_ID` - For Microsoft Graph email
+- `MICROSOFT_CLIENT_SECRET` - For Microsoft Graph email
+- `MICROSOFT_TENANT_ID` - For Microsoft Graph email
+- `MICROSOFT_SENDER_EMAIL` - Sender email for Microsoft Graph
+- `RESEND_API_KEY` - For Resend email service
+
+## API Routes
+
+- `/api/subscribers` - Manage subscribers
+- `/api/posts` - Manage blog posts
+- `/api/newsletters` - Manage newsletter articles
+- `/api/products` - Manage products
+- `/api/comments` - Manage comments
+- `/api/reactions` - Manage reactions
+- `/api/analytics/track-page` - Track page views
+- `/api/analytics/track-event` - Track events
+- `/api/analytics/stats` - Get analytics statistics
+- `/api/dashboard/stats` - Get dashboard statistics
+- `/api/contact` - Handle contact submissions
+- `/api/creator-applications` - Handle creator applications
+
+## Build
+
+\`\`\`bash
+npm run build
+\`\`\`
+
+## Deployment
+
+The project is configured for Vercel deployment with:
+- Automatic environment variable validation
+- Edge-ready API routes
+- Optimized build output
+
+## License
+
+MIT
