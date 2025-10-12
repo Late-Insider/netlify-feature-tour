@@ -51,12 +51,10 @@
 
 @layer base {
   * {
-    @apply border-zinc-800;
+    @apply border-border;
   }
   body {
-    @apply bg-black text-white;
-    background-color: #111827;
-    color: #ffffff;
+    @apply bg-background text-foreground;
   }
   html {
     font-family: "Inter", "Helvetica Neue", system-ui, sans-serif;
