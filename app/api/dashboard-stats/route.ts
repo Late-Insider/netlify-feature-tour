@@ -1,20 +1,65 @@
 import { NextResponse } from "next/server"
-import { getDashboardStats, isSupabaseConfigured } from "@/lib/supabase"
+import { getSubscriberCountByCategory } from "@/lib/supabase"
+import { sql } from "@vercel/postgres"
 
 export async function GET() {
   try {
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json({ error: "Database is not configured." }, { status: 503 })
-    }
-
-    const stats = await getDashboardStats()
+    const [newsletter, shop, podcast, auctionCollector, contact, creatorApps] = await Promise.all([
+      getSubscriberCountByCategory("newsletter"),
+      getSubscriberCountByCategory("shop"),
+      getSubscriberCountByCategory("podcast"),
+      getSubscriberCountByCategory("auction-collector"),
+      getContactCount(),
+      getCreatorApplicationCount(),
+    ])
 
     return NextResponse.json({
       success: true,
-      data: stats,
+      counts: {
+        newsletter,
+        shop,
+        podcast,
+        "auction-collector": auctionCollector,
+        "auction-creator": creatorApps,
+        contact,
+      },
     })
   } catch (error) {
-    console.error("Dashboard stats error:", error)
-    return NextResponse.json({ error: "Failed to fetch dashboard stats." }, { status: 500 })
+    console.error("Error fetching dashboard stats:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch dashboard stats",
+        counts: {
+          newsletter: 0,
+          shop: 0,
+          podcast: 0,
+          "auction-collector": 0,
+          "auction-creator": 0,
+          contact: 0,
+        },
+      },
+      { status: 500 },
+    )
+  }
+}
+
+async function getContactCount(): Promise<number> {
+  try {
+    const result = await sql`SELECT COUNT(*) as count FROM contact_submissions`
+    return Number.parseInt(result.rows[0]?.count || "0")
+  } catch (error) {
+    console.error("Error getting contact count:", error)
+    return 0
+  }
+}
+
+async function getCreatorApplicationCount(): Promise<number> {
+  try {
+    const result = await sql`SELECT COUNT(*) as count FROM creator_applications`
+    return Number.parseInt(result.rows[0]?.count || "0")
+  } catch (error) {
+    console.error("Error getting creator application count:", error)
+    return 0
   }
 }

@@ -1,17 +1,11 @@
-import EmailDebug from "@/components/email-debug"
+import { EmailDebug } from "@/components/email-debug"
 
 export default function EmailDebugPage() {
   return (
-    <main className="pt-24 pb-16 bg-black text-white">
-      <div className="container mx-auto px-4">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6 text-center">Admin Notification Debug</h1>
-          <p className="text-zinc-300 mb-8 text-center">
-            This page helps diagnose issues with admin notifications for form submissions.
-          </p>
-
-          <EmailDebug />
-        </div>
+    <main className="min-h-screen bg-black text-white py-24 px-6">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-bold mb-8 text-center">Email Configuration Debug</h1>
+        <EmailDebug />
       </div>
     </main>
   )

@@ -367,7 +367,7 @@ const weeklyInsights: WeeklyInsight[] = [
   },
 ]
 
-export default function WeeklyInsights() {
+export function WeeklyInsights() {
   const latestArticle = getLatestNewsletterArticle()
   const readTime = calculateReadTime(latestArticle.content)
 
@@ -433,3 +433,5 @@ export default function WeeklyInsights() {
     </section>
   )
 }
+
+export default WeeklyInsights

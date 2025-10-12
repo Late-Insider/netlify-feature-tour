@@ -1,106 +1,33 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Heart, ThumbsUp, Lightbulb, Target } from "lucide-react"
+import { useState } from "react"
+import { ThumbsUp, Heart, Lightbulb, Flame } from "lucide-react"
 
-interface Reaction {
-  type: "love" | "like" | "insightful" | "inspiring"
-  count: number
-  userReacted: boolean
-}
+const reactions = [
+  { icon: ThumbsUp, label: "Helpful", color: "text-blue-400" },
+  { icon: Heart, label: "Loved it", color: "text-red-400" },
+  { icon: Lightbulb, label: "Insightful", color: "text-yellow-400" },
+  { icon: Flame, label: "Fire", color: "text-orange-400" },
+]
 
-interface BlogReactionsProps {
-  blogId: number
-}
-
-export default function BlogReactions({ blogId }: BlogReactionsProps) {
-  const [reactions, setReactions] = useState<Reaction[]>([
-    { type: "love", count: 0, userReacted: false },
-    { type: "like", count: 0, userReacted: false },
-    { type: "insightful", count: 0, userReacted: false },
-    { type: "inspiring", count: 0, userReacted: false },
-  ])
-
-  // Load reactions from localStorage on component mount
-  useEffect(() => {
-    const savedReactions = localStorage.getItem(`blog-reactions-${blogId}`)
-    if (savedReactions) {
-      setReactions(JSON.parse(savedReactions))
-    } else {
-      // Initialize with some random counts for demo
-      const initialReactions = [
-        { type: "love" as const, count: Math.floor(Math.random() * 25) + 8, userReacted: false },
-        { type: "like" as const, count: Math.floor(Math.random() * 20) + 12, userReacted: false },
-        { type: "insightful" as const, count: Math.floor(Math.random() * 15) + 6, userReacted: false },
-        { type: "inspiring" as const, count: Math.floor(Math.random() * 22) + 9, userReacted: false },
-      ]
-      setReactions(initialReactions)
-      localStorage.setItem(`blog-reactions-${blogId}`, JSON.stringify(initialReactions))
-    }
-  }, [blogId])
-
-  const handleReaction = (type: Reaction["type"]) => {
-    const updatedReactions = reactions.map((reaction) => {
-      if (reaction.type === type) {
-        return {
-          ...reaction,
-          count: reaction.userReacted ? reaction.count - 1 : reaction.count + 1,
-          userReacted: !reaction.userReacted,
-        }
-      }
-      return reaction
-    })
-
-    setReactions(updatedReactions)
-    localStorage.setItem(`blog-reactions-${blogId}`, JSON.stringify(updatedReactions))
-  }
-
-  const getReactionIcon = (type: Reaction["type"]) => {
-    switch (type) {
-      case "love":
-        return <Heart className="w-5 h-5" />
-      case "like":
-        return <ThumbsUp className="w-5 h-5" />
-      case "insightful":
-        return <Lightbulb className="w-5 h-5" />
-      case "inspiring":
-        return <Target className="w-5 h-5" />
-    }
-  }
-
-  const getReactionLabel = (type: Reaction["type"]) => {
-    switch (type) {
-      case "love":
-        return "Love"
-      case "like":
-        return "Like"
-      case "insightful":
-        return "Insightful"
-      case "inspiring":
-        return "Inspiring"
-    }
-  }
+export function BlogReactions() {
+  const [selected, setSelected] = useState<string | null>(null)
 
   return (
-    <div className="mt-12 pt-8 border-t border-gray-200 dark:border-zinc-800">
-      <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">How did this resonate with you?</h3>
-      <div className="flex flex-wrap gap-3">
-        {reactions.map((reaction) => (
-          <button
-            key={reaction.type}
-            onClick={() => handleReaction(reaction.type)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-200 ${
-              reaction.userReacted
-                ? "bg-purple-600 border-purple-600 text-white"
-                : "bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:border-gray-400 dark:hover:border-zinc-600"
-            }`}
-          >
-            {getReactionIcon(reaction.type)}
-            <span className="text-sm font-medium">{getReactionLabel(reaction.type)}</span>
-            <span className="text-sm">{reaction.count}</span>
-          </button>
-        ))}
-      </div>
+    <div className="flex items-center gap-2 my-8">
+      <span className="text-sm text-zinc-400 mr-2">How was this post?</span>
+      {reactions.map(({ icon: Icon, label, color }) => (
+        <button
+          key={label}
+          onClick={() => setSelected(label)}
+          className={`p-2 rounded-lg border transition-all ${
+            selected === label ? `${color} border-current bg-current/10` : "border-zinc-800 hover:border-zinc-700"
+          }`}
+          title={label}
+        >
+          <Icon className="w-5 h-5" />
+        </button>
+      ))}
     </div>
   )
 }

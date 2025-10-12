@@ -16,7 +16,7 @@ interface AuctionWaitlistModalProps {
 type UserType = "collector" | "creator" | null
 type TimeSlot = "morning" | "afternoon" | "evening" | "weekend"
 
-export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlistModalProps) {
+export function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlistModalProps) {
   const [userType, setUserType] = useState<UserType>(null)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -280,3 +280,5 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
     </div>
   )
 }
+
+export default AuctionWaitlistModal

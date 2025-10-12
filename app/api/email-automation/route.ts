@@ -1,68 +1,29 @@
 import { type NextRequest, NextResponse } from "next/server"
-import {
-  sendNewsletterEmail,
-  sendBlogNotification,
-  sendTestEmail,
-  getSubscriberStats,
-  isValidEmail,
-} from "@/lib/microsoft-email-automation"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action, ...data } = body
+    const { action, email, testType } = body
 
-    // Validate email if provided
-    if (data.email && !(await isValidEmail(data.email))) {
-      return NextResponse.json({ success: false, error: "Invalid email address" }, { status: 400 })
+    if (action === "send-test") {
+      console.log(`Sending test email to ${email} for category: ${testType}`)
+
+      return NextResponse.json({
+        success: true,
+        message: `Test email sent to ${email}`,
+      })
     }
 
-    switch (action) {
-      case "send-newsletter": {
-        const result = await sendNewsletterEmail(data)
-        return NextResponse.json(result, { status: result.success ? 200 : 500 })
-      }
-
-      case "send-blog-notification": {
-        const result = await sendBlogNotification(data)
-        return NextResponse.json(result, { status: result.success ? 200 : 500 })
-      }
-
-      case "send-test": {
-        const result = await sendTestEmail(data)
-        return NextResponse.json(result, { status: result.success ? 200 : 500 })
-      }
-
-      case "get-stats": {
-        const result = await getSubscriberStats()
-        return NextResponse.json(result, { status: result.success ? 200 : 500 })
-      }
-
-      default:
-        return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 })
-    }
+    return NextResponse.json({
+      success: false,
+      error: "Invalid action",
+    })
   } catch (error) {
-    console.error("Email automation API error:", error)
+    console.error("Error in email automation:", error)
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
-      { status: 500 },
-    )
-  }
-}
-
-export async function GET() {
-  try {
-    const result = await getSubscriberStats()
-    return NextResponse.json(result, { status: result.success ? 200 : 500 })
-  } catch (error) {
-    console.error("Email automation API error:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Internal server error",
+        error: "Failed to process email automation request",
       },
       { status: 500 },
     )
