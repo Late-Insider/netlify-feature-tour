@@ -7,18 +7,14 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
+    domains: ['blob.v0.app'],
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "**",
+        protocol: 'https',
+        hostname: 'blob.v0.app',
       },
     ],
     unoptimized: true,
-  },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "2mb",
-    },
   },
 }
 
