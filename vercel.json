@@ -1,8 +1,4 @@
 {
-  "installCommand": "npm install --legacy-peer-deps --force",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "framework": "nextjs",
   "crons": [
     {
       "path": "/api/email-automation/send-pending",
