@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import * as Tabs from "@radix-ui/react-tabs"
 import { Mail, MessageSquare, Palette, UserCheck, Radio, Send, CheckCircle, AlertCircle, RefreshCw } from "lucide-react"
 
 interface EmailStats {
