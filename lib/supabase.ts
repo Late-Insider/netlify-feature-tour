@@ -1,174 +1,147 @@
-import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+
+// Environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 // Lazy initialization
-let supabaseClient: SupabaseClient | null = null
+let supabaseClient: ReturnType<typeof createSupabaseClient> | null = null
 
-function getSupabaseClient(): SupabaseClient | null {
-  if (supabaseClient) return supabaseClient
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
+function getSupabaseClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn("Supabase environment variables not configured")
     return null
   }
 
-  try {
+  if (!supabaseClient) {
     supabaseClient = createSupabaseClient(supabaseUrl, supabaseAnonKey)
-    return supabaseClient
-  } catch (error) {
-    console.error("Failed to initialize Supabase client:", error)
-    return null
   }
+
+  return supabaseClient
 }
 
+// Check if Supabase is configured
 export function isSupabaseConfigured(): boolean {
-  return getSupabaseClient() !== null
+  return !!(supabaseUrl && supabaseAnonKey)
 }
 
+// Database operations
 export async function addSubscriber(
   email: string,
   category: string,
-  unsubscribeToken?: string,
+  metadata?: Record<string, any>,
 ): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseClient()
   if (!client) {
-    return { success: false, error: "Database not configured" }
+    return { success: false, error: "Supabase not configured" }
   }
 
   try {
-    const { error } = await client.from("subscribers").upsert(
-      {
-        email,
-        category,
-        unsubscribe_token: unsubscribeToken || "",
-        subscribed: true,
-        created_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "email,category",
-      },
-    )
+    const { error } = await client.from("subscribers").insert({
+      email,
+      category,
+      metadata,
+      subscribed_at: new Date().toISOString(),
+    })
 
     if (error) {
-      console.error("Supabase error adding subscriber:", error)
+      // If duplicate, consider it a success
+      if (error.code === "23505") {
+        return { success: true }
+      }
+      console.error("Supabase insert error:", error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (error) {
     console.error("Error adding subscriber:", error)
-    return { success: false, error: "Failed to add subscriber" }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
   }
 }
 
-export async function addComment(
+export async function addContactSubmission(
+  name: string,
   email: string,
-  comment: string,
-  articleSlug: string,
-  articleType: string,
-  name?: string,
+  message: string,
 ): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseClient()
   if (!client) {
-    return { success: false, error: "Database not configured" }
-  }
-
-  try {
-    const { error } = await client.from("comments").insert({
-      email,
-      name: name || email.split("@")[0],
-      comment,
-      article_slug: articleSlug,
-      article_type: articleType,
-      created_at: new Date().toISOString(),
-    })
-
-    if (error) {
-      console.error("Supabase error adding comment:", error)
-      return { success: false, error: error.message }
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error("Error adding comment:", error)
-    return { success: false, error: "Failed to add comment" }
-  }
-}
-
-export async function addContactSubmission(data: {
-  name: string
-  email: string
-  message: string
-}): Promise<{ success: boolean; error?: string }> {
-  const client = getSupabaseClient()
-  if (!client) {
-    return { success: false, error: "Database not configured" }
+    return { success: false, error: "Supabase not configured" }
   }
 
   try {
     const { error } = await client.from("contact_submissions").insert({
-      name: data.name,
-      email: data.email,
-      message: data.message,
-      created_at: new Date().toISOString(),
+      name,
+      email,
+      message,
+      submitted_at: new Date().toISOString(),
     })
 
     if (error) {
-      console.error("Supabase error adding contact submission:", error)
+      console.error("Supabase insert error:", error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (error) {
     console.error("Error adding contact submission:", error)
-    return { success: false, error: "Failed to add contact submission" }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
   }
 }
 
-export async function addCreatorApplication(data: {
-  name: string
-  email: string
-  portfolio: string
-  message: string
-}): Promise<{ success: boolean; error?: string }> {
+export async function addComment(
+  articleSlug: string,
+  name: string,
+  email: string,
+  comment: string,
+): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseClient()
   if (!client) {
-    return { success: false, error: "Database not configured" }
+    return { success: false, error: "Supabase not configured" }
   }
 
   try {
-    const { error } = await client.from("creator_applications").insert({
-      name: data.name,
-      email: data.email,
-      portfolio: data.portfolio,
-      message: data.message,
+    const { error } = await client.from("comments").insert({
+      article_slug: articleSlug,
+      commenter_name: name,
+      commenter_email: email,
+      comment_text: comment,
       created_at: new Date().toISOString(),
     })
 
     if (error) {
-      console.error("Supabase error adding creator application:", error)
+      console.error("Supabase insert error:", error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (error) {
-    console.error("Error adding creator application:", error)
-    return { success: false, error: "Failed to add creator application" }
+    console.error("Error adding comment:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
   }
 }
 
-export async function getComments(articleSlug: string, articleType: string): Promise<any[]> {
+export async function getComments(articleSlug: string) {
   const client = getSupabaseClient()
-  if (!client) return []
+  if (!client) {
+    return []
+  }
 
   try {
     const { data, error } = await client
       .from("comments")
       .select("*")
       .eq("article_slug", articleSlug)
-      .eq("article_type", articleType)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -178,64 +151,57 @@ export async function getComments(articleSlug: string, articleType: string): Pro
 
     return data || []
   } catch (error) {
-    console.error("Error fetching comments:", error)
+    console.error("Error getting comments:", error)
     return []
   }
 }
 
-export async function getDashboardStats(): Promise<any> {
+export async function getDashboardStats() {
   const client = getSupabaseClient()
   if (!client) {
     return {
-      totalSubscribers: 0,
-      newsletterSubscribers: 0,
-      shopWaitlist: 0,
-      podcastSubscribers: 0,
-      auctionCollectors: 0,
-      recentSubscribers: [],
+      newsletter: 0,
+      shop: 0,
+      podcast: 0,
+      "auction-collector": 0,
+      "auction-creator": 0,
+      contact: 0,
     }
   }
 
   try {
-    const { data: subscribers, error: subsError } = await client.from("subscribers").select("*")
+    const categories = ["newsletter", "shop", "podcast", "auction-collector", "auction-creator"]
 
-    if (subsError) {
-      console.error("Error fetching subscribers:", subsError)
-      return {
-        totalSubscribers: 0,
-        newsletterSubscribers: 0,
-        shopWaitlist: 0,
-        podcastSubscribers: 0,
-        auctionCollectors: 0,
-        recentSubscribers: [],
-      }
+    const counts: Record<string, number> = {}
+
+    for (const category of categories) {
+      const { count } = await client
+        .from("subscribers")
+        .select("*", { count: "exact", head: true })
+        .eq("category", category)
+
+      counts[category] = count || 0
     }
 
-    const stats = {
-      totalSubscribers: subscribers?.length || 0,
-      newsletterSubscribers: subscribers?.filter((s) => s.category === "newsletter").length || 0,
-      shopWaitlist: subscribers?.filter((s) => s.category === "shop").length || 0,
-      podcastSubscribers: subscribers?.filter((s) => s.category === "podcast").length || 0,
-      auctionCollectors: subscribers?.filter((s) => s.category === "auction-collector").length || 0,
-      recentSubscribers: (subscribers || [])
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 10),
-    }
+    const { count: contactCount } = await client.from("contact_submissions").select("*", { count: "exact", head: true })
 
-    return stats
+    counts.contact = contactCount || 0
+
+    return counts
   } catch (error) {
     console.error("Error getting dashboard stats:", error)
     return {
-      totalSubscribers: 0,
-      newsletterSubscribers: 0,
-      shopWaitlist: 0,
-      podcastSubscribers: 0,
-      auctionCollectors: 0,
-      recentSubscribers: [],
+      newsletter: 0,
+      shop: 0,
+      podcast: 0,
+      "auction-collector": 0,
+      "auction-creator": 0,
+      contact: 0,
     }
   }
 }
 
+// Export the client for direct access if needed
 export function createClient() {
   return getSupabaseClient()
 }
