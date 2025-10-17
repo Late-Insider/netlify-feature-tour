@@ -8,21 +8,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, email, portfolio, message } = body
+    const { email, name, portfolio_url, message } = body
 
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    if (!name || name.trim().length === 0) {
+    if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 })
     }
 
-    const result = await addCreatorApplication(name, email, portfolio || "", message || "")
+    const result = await addCreatorApplication({ email, name, portfolio_url, message })
 
     return NextResponse.json({
       success: true,
-      message: "Application submitted! We'll review and get back to you soon.",
+      message: "Application submitted! We will review and get back to you soon.",
       data: result,
     })
   } catch (error) {

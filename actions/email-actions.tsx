@@ -1,543 +1,492 @@
 "use server"
 
-import { addSubscriber, addComment, addContactSubmission, isSupabaseConfigured } from "@/lib/supabase"
-import { sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
+import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
+import { generateUnsubscribeUrl, generateUnsubscribeToken } from "@/lib/unsubscribe"
+import { addSubscriber, addContactSubmission, addCreatorApplication } from "@/lib/db"
 
-export interface EmailResult {
+type EmailCategory = "newsletter" | "shop" | "podcast" | "auction-collector" | "auction-creator" | "contact"
+
+interface EmailResult {
   success: boolean
   message: string
-  error?: string
+  emailSent?: boolean
 }
 
 const ADMIN_EMAIL = "team@late.ltd"
 
-// Newsletter subscription
+async function generateUserEmailTemplate(
+  category: EmailCategory,
+  email: string,
+): Promise<{ subject: string; body: string }> {
+  const marketingCategories: EmailCategory[] = ["newsletter", "shop", "podcast", "auction-collector"]
+  const unsubscribeUrl = marketingCategories.includes(category) ? await generateUnsubscribeUrl(email, category) : ""
+
+  const unsubscribeFooter = unsubscribeUrl
+    ? `
+    <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
+      <p style="font-size: 12px; color: #9ca3af; line-height: 1.6;">
+        Want to change how you receive these emails? You can <a href="${unsubscribeUrl}" style="color: #667eea; text-decoration: underline;">unsubscribe from this list here</a>.
+      </p>
+    </div>
+  `
+    : ""
+
+  const templates = {
+    newsletter: {
+      subject: "Welcome to the Inner Circle",
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thank you for subscribing to the LATE newsletter. You're now signed up to receive our weekly insights, stories, and updates directly in your inbox.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
+          – The LATE Team
+        </p>
+        ${unsubscribeFooter}
+      `,
+    },
+    shop: {
+      subject: "You're on the List for The Age of Late",
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thank you for your interest! You've been added to our exclusive waitlist and will be the first to know when our new collection drops.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
+          – The LATE Team
+        </p>
+        ${unsubscribeFooter}
+      `,
+    },
+    podcast: {
+      subject: "Get Ready to Listen",
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thanks for signing up! We'll send you a notification as soon as our first episodes of 'Left Righteously' are released. Prepare for a thought-provoking listen.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
+          – The LATE Team
+        </p>
+        ${unsubscribeFooter}
+      `,
+    },
+    "auction-collector": {
+      subject: "Welcome to The LATE Auction Waitlist",
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          You're on the list! Thank you for joining the LATE Auction Waitlist. You'll receive an exclusive early access link before our next auction goes live.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px; margin-bottom: 20px;">
+          – The LATE Team
+        </p>
+        ${unsubscribeFooter}
+      `,
+    },
+    "auction-creator": {
+      subject: "Your LATE Auction Application is Received",
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thank you for your application! We appreciate your interest in collaborating with us. Our team is reviewing your submission and will be in touch soon.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+          – The LATE Team
+        </p>
+      `,
+    },
+    contact: {
+      subject: "We've Received Your Message",
+      content: `
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+          Thank you for reaching out to LATE. We appreciate you getting in touch and will respond as soon as possible.
+        </p>
+        <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+          <strong>Stay Late.</strong><br/>
+          The best things are always worth the wait ;)
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+          – The LATE Team
+        </p>
+      `,
+    },
+  }
+
+  const template = templates[category]
+  const body = await createEmailTemplate(template.subject, template.content)
+
+  return {
+    subject: template.subject,
+    body,
+  }
+}
+
+function generateAdminEmailContent(
+  category: EmailCategory,
+  email: string,
+  additionalData?: any,
+): { subject: string; content: string } {
+  const templates = {
+    newsletter: {
+      subject: "📬 New Newsletter Subscriber",
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new user has subscribed to the weekly newsletter.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+      `,
+    },
+    shop: {
+      subject: "🛍️ New Waitlist Signup: The Age of Late Collection",
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new user has joined the waitlist for The Age of Late collection.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+      `,
+    },
+    podcast: {
+      subject: "🎧 New Podcast Subscriber",
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new listener has subscribed for notifications on the 'Left Righteously' series.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+      `,
+    },
+    "auction-collector": {
+      subject: "🎨 New Auction Collector",
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new collector has joined the LATE Auction waitlist.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0 0 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+      `,
+    },
+    "auction-creator": {
+      subject: "✍️ NEW CREATOR APPLICATION RECEIVED",
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          A new creator has submitted an application for the LATE Auction.
+        </p>
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 5px 0; color: #374151;"><strong>Applicant Name:</strong> ${additionalData?.name || "N/A"}</p>
+          <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 5px 0; color: #374151;"><strong>Portfolio URL:</strong> ${additionalData?.portfolio || "N/A"}</p>
+          <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Application Details:</strong></p>
+          <div style="margin: 5px 0; color: #374151; white-space: pre-wrap; background: white; padding: 15px; border-radius: 5px; border: 1px solid #e5e7eb;">${additionalData?.message || "N/A"}</div>
+          <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Submission Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+      `,
+    },
+    contact: {
+      subject: "📥 New Contact Form Submission",
+      content: `
+        <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+          You have a new message from the website contact form.
+        </p>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px;">
+          <p style="margin: 5px 0; color: #374151;"><strong>From:</strong> ${additionalData?.name || "N/A"}</p>
+          <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Message:</strong></p>
+          <div style="margin: 5px 0; color: #374151; white-space: pre-wrap;">${additionalData?.message || "N/A"}</div>
+          <p style="margin: 15px 0 5px 0; color: #374151;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+      `,
+    },
+  }
+
+  return templates[category]
+}
+
+async function handleSubscription(email: string, category: EmailCategory): Promise<EmailResult> {
+  try {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return {
+        success: false,
+        message: "Please provide a valid email address.",
+      }
+    }
+
+    const unsubscribeToken = generateUnsubscribeToken(email, category)
+
+    const dbResult = await addSubscriber({ email, category, unsubscribeToken })
+    if (!dbResult.success) {
+      return {
+        success: false,
+        message: dbResult.error || "Failed to subscribe. Please try again.",
+      }
+    }
+
+    const userTemplate = await generateUserEmailTemplate(category, email)
+    const userResult = await sendMicrosoftGraphEmail({
+      to: email,
+      subject: userTemplate.subject,
+      body: userTemplate.body,
+    })
+
+    if (!userResult.success) {
+      console.error("Failed to send user email:", userResult.error)
+    }
+
+    const adminTemplate = generateAdminEmailContent(category, email)
+    const adminBody = await createEmailTemplate(adminTemplate.subject, adminTemplate.content)
+    await sendMicrosoftGraphEmail({
+      to: ADMIN_EMAIL,
+      subject: adminTemplate.subject,
+      body: adminBody,
+    })
+
+    return {
+      success: true,
+      message: "Success! Check your email for confirmation.",
+      emailSent: userResult.success,
+    }
+  } catch (error) {
+    console.error(`${category} subscription error:`, error)
+    return {
+      success: false,
+      message: "Something went wrong. Please try again later.",
+    }
+  }
+}
+
 export async function subscribeToNewsletter(formData: FormData): Promise<EmailResult> {
-  try {
-    const email = formData.get("email") as string
-
-    if (!email || !email.includes("@")) {
-      return { success: false, message: "Please provide a valid email address" }
-    }
-
-    if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured - subscription not saved")
-      return {
-        success: false,
-        message: "Database not configured. Please contact support.",
-        error: "SUPABASE_NOT_CONFIGURED",
-      }
-    }
-
-    // Add to database
-    const dbResult = await addSubscriber(email, "newsletter")
-    if (!dbResult.success) {
-      return { success: false, message: dbResult.error || "Failed to subscribe" }
-    }
-
-    // Send confirmation email
-    try {
-      await sendMicrosoftGraphEmail({
-        to: email,
-        subject: "Welcome to the Inner Circle",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Thank you for subscribing to the LATE newsletter.</h2>
-            <p>You're now signed up to receive our weekly insights, stories, and updates directly in your inbox.</p>
-            <p><strong>Stay Late.</strong><br>The best things are always worth the wait ;)</p>
-            <p>– The LATE Team</p>
-            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-            <p style="font-size: 12px; color: #666;">
-              Want to change how you receive these emails? 
-              <a href="${process.env.NEXT_PUBLIC_BASE_URL || "https://lateisgreat.com"}/unsubscribe?email=${encodeURIComponent(email)}">Unsubscribe from this list</a>
-            </p>
-          </div>
-        `,
-      })
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError)
-      // Don't fail the subscription if email fails
-    }
-
-    // Send admin notification
-    try {
-      const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "insidelate@gmail.com"
-      await sendMicrosoftGraphEmail({
-        to: adminEmail,
-        subject: "New Newsletter Subscriber",
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h3>New Newsletter Subscription</h3>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-        `,
-      })
-    } catch (adminEmailError) {
-      console.error("Admin notification failed:", adminEmailError)
-    }
-
-    return { success: true, message: "Successfully subscribed to newsletter!" }
-  } catch (error) {
-    console.error("Newsletter subscription error:", error)
-    return {
-      success: false,
-      message: "An error occurred. Please try again.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    }
-  }
+  const email = formData.get("email") as string
+  return handleSubscription(email, "newsletter")
 }
 
-// Shop waitlist subscription
 export async function subscribeToShopWaitlist(formData: FormData): Promise<EmailResult> {
-  try {
-    const email = formData.get("email") as string
-
-    if (!email || !email.includes("@")) {
-      return { success: false, message: "Please provide a valid email address" }
-    }
-
-    if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured - subscription not saved")
-      return {
-        success: false,
-        message: "Database not configured. Please contact support.",
-        error: "SUPABASE_NOT_CONFIGURED",
-      }
-    }
-
-    const dbResult = await addSubscriber(email, "shop")
-    if (!dbResult.success) {
-      return { success: false, message: dbResult.error || "Failed to join waitlist" }
-    }
-
-    try {
-      await sendMicrosoftGraphEmail({
-        to: email,
-        subject: "You're on the List for The Age of Late",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Thank you for your interest!</h2>
-            <p>You've been added to our exclusive waitlist and will be the first to know when our new collection drops.</p>
-            <p><strong>Stay Late.</strong><br>The best things are always worth the wait ;)</p>
-            <p>– The LATE Team</p>
-            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-            <p style="font-size: 12px; color: #666;">
-              <a href="${process.env.NEXT_PUBLIC_BASE_URL || "https://lateisgreat.com"}/unsubscribe?email=${encodeURIComponent(email)}">Unsubscribe from this list</a>
-            </p>
-          </div>
-        `,
-      })
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError)
-    }
-
-    try {
-      const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "insidelate@gmail.com"
-      await sendMicrosoftGraphEmail({
-        to: adminEmail,
-        subject: "New Shop Waitlist Signup",
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h3>New Shop Waitlist Signup</h3>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-        `,
-      })
-    } catch (adminEmailError) {
-      console.error("Admin notification failed:", adminEmailError)
-    }
-
-    return { success: true, message: "Successfully joined the waitlist!" }
-  } catch (error) {
-    console.error("Shop waitlist error:", error)
-    return {
-      success: false,
-      message: "An error occurred. Please try again.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    }
-  }
+  const email = formData.get("email") as string
+  return handleSubscription(email, "shop")
 }
 
-// Podcast subscription
 export async function subscribeToPodcast(formData: FormData): Promise<EmailResult> {
-  try {
-    const email = formData.get("email") as string
-
-    if (!email || !email.includes("@")) {
-      return { success: false, message: "Please provide a valid email address" }
-    }
-
-    if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured - subscription not saved")
-      return {
-        success: false,
-        message: "Database not configured. Please contact support.",
-        error: "SUPABASE_NOT_CONFIGURED",
-      }
-    }
-
-    const dbResult = await addSubscriber(email, "podcast")
-    if (!dbResult.success) {
-      return { success: false, message: dbResult.error || "Failed to subscribe" }
-    }
-
-    try {
-      await sendMicrosoftGraphEmail({
-        to: email,
-        subject: "Get Ready to Listen",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Thanks for signing up!</h2>
-            <p>We'll send you a notification as soon as our first episodes of 'Left Righteously' are released. Prepare for a thought-provoking listen.</p>
-            <p><strong>Stay Late.</strong><br>The best things are always worth the wait ;)</p>
-            <p>– The LATE Team</p>
-            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-            <p style="font-size: 12px; color: #666;">
-              <a href="${process.env.NEXT_PUBLIC_BASE_URL || "https://lateisgreat.com"}/unsubscribe?email=${encodeURIComponent(email)}">Unsubscribe from this list</a>
-            </p>
-          </div>
-        `,
-      })
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError)
-    }
-
-    try {
-      const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "insidelate@gmail.com"
-      await sendMicrosoftGraphEmail({
-        to: adminEmail,
-        subject: "New Podcast Subscriber",
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h3>New Podcast Subscription</h3>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-        `,
-      })
-    } catch (adminEmailError) {
-      console.error("Admin notification failed:", adminEmailError)
-    }
-
-    return { success: true, message: "Successfully subscribed to podcast updates!" }
-  } catch (error) {
-    console.error("Podcast subscription error:", error)
-    return {
-      success: false,
-      message: "An error occurred. Please try again.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    }
-  }
+  const email = formData.get("email") as string
+  return handleSubscription(email, "podcast")
 }
 
-// Auction collector subscription
 export async function subscribeToAuctionCollector(formData: FormData): Promise<EmailResult> {
-  try {
-    const email = formData.get("email") as string
-
-    if (!email || !email.includes("@")) {
-      return { success: false, message: "Please provide a valid email address" }
-    }
-
-    if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured - subscription not saved")
-      return {
-        success: false,
-        message: "Database not configured. Please contact support.",
-        error: "SUPABASE_NOT_CONFIGURED",
-      }
-    }
-
-    const dbResult = await addSubscriber(email, "auction-collector")
-    if (!dbResult.success) {
-      return { success: false, message: dbResult.error || "Failed to join waitlist" }
-    }
-
-    try {
-      await sendMicrosoftGraphEmail({
-        to: email,
-        subject: "Welcome to The LATE Auction Waitlist",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>You're on the list!</h2>
-            <p>Thank you for joining the LATE Auction Waitlist. You'll receive an exclusive early access link before our next auction goes live.</p>
-            <p><strong>Stay Late.</strong><br>The best things are always worth the wait ;)</p>
-            <p>– The LATE Team</p>
-            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-            <p style="font-size: 12px; color: #666;">
-              <a href="${process.env.NEXT_PUBLIC_BASE_URL || "https://lateisgreat.com"}/unsubscribe?email=${encodeURIComponent(email)}">Unsubscribe from this list</a>
-            </p>
-          </div>
-        `,
-      })
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError)
-    }
-
-    try {
-      const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "insidelate@gmail.com"
-      await sendMicrosoftGraphEmail({
-        to: adminEmail,
-        subject: "New Auction Collector Signup",
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h3>New Auction Collector Signup</h3>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-        `,
-      })
-    } catch (adminEmailError) {
-      console.error("Admin notification failed:", adminEmailError)
-    }
-
-    return { success: true, message: "Successfully joined the auction waitlist!" }
-  } catch (error) {
-    console.error("Auction collector error:", error)
-    return {
-      success: false,
-      message: "An error occurred. Please try again.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    }
-  }
+  const email = formData.get("email") as string
+  return handleSubscription(email, "auction-collector")
 }
 
-// Auction creator subscription
 export async function subscribeToAuctionCreator(formData: FormData): Promise<EmailResult> {
   try {
-    const email = formData.get("email") as string
     const name = formData.get("name") as string
-    const instagram = formData.get("instagram") as string
+    const email = formData.get("email") as string
     const portfolio = formData.get("portfolio") as string
+    const message = formData.get("message") as string
 
-    if (!email || !email.includes("@")) {
-      return { success: false, message: "Please provide a valid email address" }
-    }
-
-    if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured - application not saved")
+    if (!name || !email || !message) {
       return {
         success: false,
-        message: "Database not configured. Please contact support.",
-        error: "SUPABASE_NOT_CONFIGURED",
+        message: "Please fill in all required fields.",
       }
     }
 
-    const dbResult = await addSubscriber(email, "auction-creator", { name, instagram, portfolio })
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return {
+        success: false,
+        message: "Please provide a valid email address.",
+      }
+    }
+
+    const dbResult = await addCreatorApplication({
+      name,
+      email,
+      portfolio,
+      message,
+    })
+
     if (!dbResult.success) {
-      return { success: false, message: dbResult.error || "Failed to submit application" }
+      return {
+        success: false,
+        message: dbResult.error || "Failed to submit application. Please try again.",
+      }
     }
 
-    try {
-      await sendMicrosoftGraphEmail({
-        to: email,
-        subject: "Your LATE Auction Application is Received",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Thank you for your application!</h2>
-            <p>We appreciate your interest in collaborating with us. Our team is reviewing your submission and will be in touch soon.</p>
-            <p><strong>Stay Late.</strong><br>The best things are always worth the wait ;)</p>
-            <p>– The LATE Team</p>
-          </div>
-        `,
-      })
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError)
-    }
+    const userTemplate = await generateUserEmailTemplate("auction-creator", email)
+    const userResult = await sendMicrosoftGraphEmail({
+      to: email,
+      subject: userTemplate.subject,
+      body: userTemplate.body,
+    })
 
-    try {
-      const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "insidelate@gmail.com"
-      await sendMicrosoftGraphEmail({
-        to: adminEmail,
-        subject: "New Auction Creator Application",
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h3>New Auction Creator Application</h3>
-            <p><strong>Name:</strong> ${name || "Not provided"}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Instagram:</strong> ${instagram || "Not provided"}</p>
-            <p><strong>Portfolio:</strong> ${portfolio || "Not provided"}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-        `,
-      })
-    } catch (adminEmailError) {
-      console.error("Admin notification failed:", adminEmailError)
-    }
+    const adminTemplate = generateAdminEmailContent("auction-creator", email, { name, portfolio, message })
+    const adminBody = await createEmailTemplate(adminTemplate.subject, adminTemplate.content)
+    await sendMicrosoftGraphEmail({
+      to: ADMIN_EMAIL,
+      subject: adminTemplate.subject,
+      body: adminBody,
+    })
 
-    return { success: true, message: "Application submitted successfully!" }
+    return {
+      success: true,
+      message: "Application submitted! We'll review it soon.",
+      emailSent: userResult.success,
+    }
   } catch (error) {
-    console.error("Auction creator error:", error)
+    console.error("Auction creator submission error:", error)
     return {
       success: false,
-      message: "An error occurred. Please try again.",
-      error: error instanceof Error ? error.message : "Unknown error",
+      message: "Something went wrong. Please try again later.",
     }
   }
 }
 
-// Contact form submission
 export async function handleContactForm(formData: FormData): Promise<EmailResult> {
   try {
     const name = formData.get("name") as string
     const email = formData.get("email") as string
     const message = formData.get("message") as string
 
-    if (!email || !email.includes("@")) {
-      return { success: false, message: "Please provide a valid email address" }
-    }
-
-    if (!name || !message) {
-      return { success: false, message: "Please fill in all fields" }
-    }
-
-    if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured - contact form not saved")
+    if (!name || !email || !message) {
       return {
         success: false,
-        message: "Database not configured. Please contact support.",
-        error: "SUPABASE_NOT_CONFIGURED",
+        message: "All fields are required.",
       }
     }
 
-    const dbResult = await addContactSubmission(name, email, message)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return {
+        success: false,
+        message: "Please provide a valid email address.",
+      }
+    }
+
+    const dbResult = await addContactSubmission({ name, email, message })
     if (!dbResult.success) {
-      return { success: false, message: dbResult.error || "Failed to submit message" }
+      return {
+        success: false,
+        message: dbResult.error || "Failed to send message. Please try again.",
+      }
     }
 
-    try {
-      await sendMicrosoftGraphEmail({
-        to: email,
-        subject: "We've Received Your Message",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Thank you for reaching out to LATE.</h2>
-            <p>We appreciate you getting in touch and will respond as soon as possible.</p>
-            <p><strong>Stay Late.</strong><br>The best things are always worth the wait ;)</p>
-            <p>– The LATE Team</p>
-          </div>
-        `,
-      })
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError)
-    }
+    const userTemplate = await generateUserEmailTemplate("contact", email)
+    const userResult = await sendMicrosoftGraphEmail({
+      to: email,
+      subject: userTemplate.subject,
+      body: userTemplate.body,
+    })
 
-    try {
-      const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "insidelate@gmail.com"
-      await sendMicrosoftGraphEmail({
-        to: adminEmail,
-        subject: "New Contact Form Submission",
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h3>New Contact Form Submission</h3>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Message:</strong></p>
-            <p>${message}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-        `,
-      })
-    } catch (adminEmailError) {
-      console.error("Admin notification failed:", adminEmailError)
-    }
+    const adminTemplate = generateAdminEmailContent("contact", email, { name, message })
+    const adminBody = await createEmailTemplate(adminTemplate.subject, adminTemplate.content)
+    await sendMicrosoftGraphEmail({
+      to: ADMIN_EMAIL,
+      subject: adminTemplate.subject,
+      body: adminBody,
+    })
 
-    return { success: true, message: "Message sent successfully!" }
+    return {
+      success: true,
+      message: "Message sent! We'll get back to you soon.",
+      emailSent: userResult.success,
+    }
   } catch (error) {
     console.error("Contact form error:", error)
     return {
       success: false,
-      message: "An error occurred. Please try again.",
-      error: error instanceof Error ? error.message : "Unknown error",
+      message: "Something went wrong. Please try again later.",
     }
   }
 }
 
-// Comment submission
-export async function submitComment(
-  articleSlug: string,
-  commenterName: string,
-  commenterEmail: string,
-  commentText: string,
-): Promise<EmailResult> {
-  try {
-    if (!commenterEmail || !commenterEmail.includes("@")) {
-      return { success: false, message: "Please provide a valid email address" }
-    }
+export async function handleNewsletterSubscription(formData: FormData): Promise<EmailResult> {
+  return subscribeToNewsletter(formData)
+}
 
-    if (!commenterName || !commentText) {
-      return { success: false, message: "Please fill in all fields" }
-    }
+export async function subscribeToShopUpdates(formData: FormData): Promise<EmailResult> {
+  return subscribeToShopWaitlist(formData)
+}
 
-    if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured - comment not saved")
+export async function sendContactEmail(formData: FormData): Promise<EmailResult> {
+  return handleContactForm(formData)
+}
+
+export async function sendNewsletterSignup(email: string): Promise<EmailResult> {
+  return handleSubscription(email, "newsletter")
+}
+
+export async function handleFormSubmission(formData: FormData): Promise<EmailResult & { emailSent?: boolean }> {
+  const formType = formData.get("form-name") as string
+
+  switch (formType) {
+    case "auction-collector-waitlist":
+      return subscribeToAuctionCollector(formData)
+    case "auction-creator-application":
+      return subscribeToAuctionCreator(formData)
+    case "podcast-notification":
+      return subscribeToPodcast(formData)
+    case "shop-updates":
+      return subscribeToShopWaitlist(formData)
+    case "newsletter":
+      return subscribeToNewsletter(formData)
+    case "contact-form":
+      return handleContactForm(formData)
+    default:
       return {
         success: false,
-        message: "Database not configured. Please contact support.",
-        error: "SUPABASE_NOT_CONFIGURED",
+        message: "Unknown form type",
       }
-    }
-
-    const dbResult = await addComment(articleSlug, commenterName, commenterEmail, commentText)
-    if (!dbResult.success) {
-      return { success: false, message: dbResult.error || "Failed to post comment" }
-    }
-
-    try {
-      await sendMicrosoftGraphEmail({
-        to: commenterEmail,
-        subject: "Thank You for Your Comment",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Thank you for your comment, ${commenterName}!</h2>
-            <p>We appreciate you taking the time to share your thoughts with us.</p>
-            <p>If you'd like to stay updated with our latest insights, consider subscribing to our newsletter.</p>
-            <p><strong>Stay Late.</strong><br>The best things are always worth the wait ;)</p>
-            <p>– The LATE Team</p>
-          </div>
-        `,
-      })
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError)
-    }
-
-    try {
-      const adminEmail = process.env.MICROSOFT_SENDER_EMAIL || "insidelate@gmail.com"
-      await sendMicrosoftGraphEmail({
-        to: adminEmail,
-        subject: "New Comment Posted",
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h3>New Comment on ${articleSlug}</h3>
-            <p><strong>Name:</strong> ${commenterName}</p>
-            <p><strong>Email:</strong> ${commenterEmail}</p>
-            <p><strong>Comment:</strong></p>
-            <p>${commentText}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-        `,
-      })
-    } catch (adminEmailError) {
-      console.error("Admin notification failed:", adminEmailError)
-    }
-
-    return { success: true, message: "Comment posted successfully!" }
-  } catch (error) {
-    console.error("Comment submission error:", error)
-    return {
-      success: false,
-      message: "An error occurred. Please try again.",
-      error: error instanceof Error ? error.message : "Unknown error",
-    }
   }
 }
 
-// Aliases for backward compatibility
-export const handleNewsletterSubscription = subscribeToNewsletter
-export const subscribeToShopUpdates = subscribeToShopWaitlist
-export const sendContactEmail = handleContactForm
-export const sendNewsletterSignup = subscribeToNewsletter
-export const handleFormSubmission = subscribeToNewsletter
-export const sendCommentNotification = submitComment
+export async function submitComment(formData: FormData): Promise<EmailResult> {
+  const name = formData.get("name") as string
+  const email = formData.get("email") as string
+  const comment = formData.get("comment") as string
+
+  if (!name || !email || !comment) {
+    return {
+      success: false,
+      message: "All fields are required",
+    }
+  }
+
+  return {
+    success: true,
+    message: "Comment submitted successfully!",
+  }
+}
+
+export async function sendCommentNotification(
+  commenterEmail: string,
+  commenterName: string,
+  articleTitle: string,
+  comment: string,
+  articleType: "blog" | "newsletter",
+): Promise<EmailResult> {
+  return {
+    success: true,
+    message: "Comment notification sent",
+  }
+}

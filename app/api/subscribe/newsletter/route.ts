@@ -8,18 +8,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email } = body
+    const { email, name } = body
 
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    const result = await addSubscriber(email, "newsletter")
+    const result = await addSubscriber({ email, name, category: "newsletter" })
 
     return NextResponse.json({
       success: true,
-      message: "You're subscribed! Check your inbox for weekly insights.",
-      data: result,
+      message: result.isNew
+        ? "You're subscribed! Check your inbox for weekly insights."
+        : "You're already subscribed to our newsletter!",
+      data: result.data,
     })
   } catch (error) {
     console.error("Newsletter subscription error:", error)
