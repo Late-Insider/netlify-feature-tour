@@ -237,33 +237,33 @@ The best things are always worth the wait ;)
           ))}
         </div>
 
-        <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-6">
-          <TabsList className="grid grid-cols-3 lg:grid-cols-6 bg-zinc-900">
-            <TabsTrigger value="newsletter" className="data-[state=active]:bg-blue-600">
+        <Tabs.Root value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-6">
+          <Tabs.List className="grid grid-cols-3 lg:grid-cols-6 bg-zinc-900">
+            <Tabs.Trigger value="newsletter" className="data-[state=active]:bg-blue-600">
               <Mail className="w-4 h-4 mr-2" />
               Newsletter
-            </TabsTrigger>
-            <TabsTrigger value="shop" className="data-[state=active]:bg-green-600">
+            </Tabs.Trigger>
+            <Tabs.Trigger value="shop" className="data-[state=active]:bg-green-600">
               <Radio className="w-4 h-4 mr-2" />
               Shop
-            </TabsTrigger>
-            <TabsTrigger value="podcast" className="data-[state=active]:bg-red-600">
+            </Tabs.Trigger>
+            <Tabs.Trigger value="podcast" className="data-[state=active]:bg-red-600">
               <Radio className="w-4 h-4 mr-2" />
               Podcast
-            </TabsTrigger>
-            <TabsTrigger value="auction-collector" className="data-[state=active]:bg-purple-600">
+            </Tabs.Trigger>
+            <Tabs.Trigger value="auction-collector" className="data-[state=active]:bg-purple-600">
               <UserCheck className="w-4 h-4 mr-2" />
               Collectors
-            </TabsTrigger>
-            <TabsTrigger value="auction-creator" className="data-[state=active]:bg-pink-600">
+            </Tabs.Trigger>
+            <Tabs.Trigger value="auction-creator" className="data-[state=active]:bg-pink-600">
               <Palette className="w-4 h-4 mr-2" />
               Creators
-            </TabsTrigger>
-            <TabsTrigger value="contact" className="data-[state=active]:bg-orange-600">
+            </Tabs.Trigger>
+            <Tabs.Trigger value="contact" className="data-[state=active]:bg-orange-600">
               <MessageSquare className="w-4 h-4 mr-2" />
               Contact
-            </TabsTrigger>
-          </TabsList>
+            </Tabs.Trigger>
+          </Tabs.List>
 
           {/* Email Template Content */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
