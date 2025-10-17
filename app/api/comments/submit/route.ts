@@ -1,52 +1,36 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { addComment, addSubscriber, getSubscriberByEmail } from "@/lib/supabase"
-import { processNewComment } from "@/lib/comment-notifications"
+import { addComment, isSupabaseConfigured } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json({ error: "Database is not configured. Please contact support." }, { status: 503 })
+    }
+
     const body = await request.json()
-    const { name, email, comment, articleTitle, articleSlug, articleType } = body
+    const { email, comment, articleSlug, articleType } = body
 
-    if (!name || !email || !comment || !articleTitle || !articleSlug || !articleType) {
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
+    if (!email || !email.includes("@")) {
+      return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ success: false, error: "Invalid email format" }, { status: 400 })
+    if (!comment || comment.trim().length === 0) {
+      return NextResponse.json({ error: "Comment cannot be empty" }, { status: 400 })
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-    const articleUrl = `${siteUrl}/newsletter/${articleSlug}`
-
-    await addComment(email, comment, articleSlug, articleType)
-
-    const existingSubscriber = await getSubscriberByEmail(email)
-    if (!existingSubscriber) {
-      await addSubscriber(email, `${articleType}_comment`)
+    if (!articleSlug) {
+      return NextResponse.json({ error: "Article slug is required" }, { status: 400 })
     }
 
-    const success = await processNewComment({
-      commenterEmail: email,
-      commenterName: name,
-      articleTitle,
-      articleUrl,
-      commentText: comment,
+    const result = await addComment(email, comment, articleSlug, articleType || "newsletter")
+
+    return NextResponse.json({
+      success: true,
+      message: "Comment submitted successfully!",
+      data: result,
     })
-
-    if (success) {
-      return NextResponse.json({ success: true, message: "Comment submitted and notifications sent" })
-    } else {
-      return NextResponse.json(
-        { success: false, error: "Comment saved but failed to send notifications" },
-        { status: 207 },
-      )
-    }
   } catch (error) {
-    console.error("Error processing comment:", error)
-    return NextResponse.json(
-      { success: false, error: "An error occurred while processing your comment" },
-      { status: 500 },
-    )
+    console.error("Comment submission error:", error)
+    return NextResponse.json({ error: "Failed to submit comment. Please try again." }, { status: 500 })
   }
 }

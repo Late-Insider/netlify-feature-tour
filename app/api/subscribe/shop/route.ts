@@ -8,23 +8,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, name } = body
+    const { email } = body
 
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    const result = await addSubscriber({ email, name, category: "shop" })
+    const result = await addSubscriber(email, "shop")
 
     return NextResponse.json({
       success: true,
-      message: result.isNew
-        ? "You're on the waitlist! We'll notify you when the shop launches."
-        : "You're already on our shop waitlist!",
-      data: result.data,
+      message: "You'll be the first to know when our shop launches!",
+      data: result,
     })
   } catch (error) {
     console.error("Shop subscription error:", error)
-    return NextResponse.json({ error: "Failed to join waitlist. Please try again." }, { status: 500 })
+    return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 })
   }
 }

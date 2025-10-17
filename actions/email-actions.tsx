@@ -1,14 +1,21 @@
 "use server"
 
+import {
+  addSubscriber,
+  addComment,
+  addContactSubmission,
+  addCreatorApplication,
+  isSupabaseConfigured,
+} from "@/lib/supabase"
 import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
 import { generateUnsubscribeUrl, generateUnsubscribeToken } from "@/lib/unsubscribe"
-import { addSubscriber, addContactSubmission, addCreatorApplication } from "@/lib/supabase-db"
 
 type EmailCategory = "newsletter" | "shop" | "podcast" | "auction-collector" | "auction-creator" | "contact"
 
 interface EmailResult {
   success: boolean
-  message: string
+  message?: string
+  error?: string
   emailSent?: boolean
 }
 
@@ -229,6 +236,13 @@ function generateAdminEmailContent(
 
 async function handleSubscription(email: string, category: EmailCategory): Promise<EmailResult> {
   try {
+    if (!isSupabaseConfigured()) {
+      return {
+        success: false,
+        error: "Database is not configured. Please contact support.",
+      }
+    }
+
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return {
         success: false,
@@ -238,11 +252,11 @@ async function handleSubscription(email: string, category: EmailCategory): Promi
 
     const unsubscribeToken = generateUnsubscribeToken(email, category)
 
-    const dbResult = await addSubscriber({ email, category, unsubscribeToken })
-    if (!dbResult.success) {
+    const result = await addSubscriber(email, category, unsubscribeToken)
+    if (!result.success) {
       return {
         success: false,
-        message: dbResult.error || "Failed to subscribe. Please try again.",
+        error: result.error || "Failed to subscribe. Please try again.",
       }
     }
 
@@ -301,6 +315,13 @@ export async function subscribeToAuctionCollector(formData: FormData): Promise<E
 
 export async function subscribeToAuctionCreator(formData: FormData): Promise<EmailResult> {
   try {
+    if (!isSupabaseConfigured()) {
+      return {
+        success: false,
+        error: "Database is not configured. Please contact support.",
+      }
+    }
+
     const name = formData.get("name") as string
     const email = formData.get("email") as string
     const portfolio = formData.get("portfolio") as string
@@ -320,17 +341,17 @@ export async function subscribeToAuctionCreator(formData: FormData): Promise<Ema
       }
     }
 
-    const dbResult = await addCreatorApplication({
+    const result = await addCreatorApplication({
       name,
       email,
       portfolio,
       message,
     })
 
-    if (!dbResult.success) {
+    if (!result.success) {
       return {
         success: false,
-        message: dbResult.error || "Failed to submit application. Please try again.",
+        error: result.error || "Failed to submit application. Please try again.",
       }
     }
 
@@ -365,6 +386,13 @@ export async function subscribeToAuctionCreator(formData: FormData): Promise<Ema
 
 export async function handleContactForm(formData: FormData): Promise<EmailResult> {
   try {
+    if (!isSupabaseConfigured()) {
+      return {
+        success: false,
+        error: "Database is not configured. Please contact support.",
+      }
+    }
+
     const name = formData.get("name") as string
     const email = formData.get("email") as string
     const message = formData.get("message") as string
@@ -383,11 +411,11 @@ export async function handleContactForm(formData: FormData): Promise<EmailResult
       }
     }
 
-    const dbResult = await addContactSubmission({ name, email, message })
-    if (!dbResult.success) {
+    const result = await addContactSubmission({ name, email, message })
+    if (!result.success) {
       return {
         success: false,
-        message: dbResult.error || "Failed to send message. Please try again.",
+        error: result.error || "Failed to send message. Please try again.",
       }
     }
 
@@ -433,10 +461,12 @@ export async function sendContactEmail(formData: FormData): Promise<EmailResult>
 }
 
 export async function sendNewsletterSignup(email: string): Promise<EmailResult> {
+  const formData = new FormData()
+  formData.append("email", email)
   return handleSubscription(email, "newsletter")
 }
 
-export async function handleFormSubmission(formData: FormData): Promise<EmailResult & { emailSent?: boolean }> {
+export async function handleFormSubmission(formData: FormData): Promise<EmailResult> {
   const formType = formData.get("form-name") as string
 
   switch (formType) {
@@ -461,20 +491,52 @@ export async function handleFormSubmission(formData: FormData): Promise<EmailRes
 }
 
 export async function submitComment(formData: FormData): Promise<EmailResult> {
-  const name = formData.get("name") as string
-  const email = formData.get("email") as string
-  const comment = formData.get("comment") as string
+  try {
+    if (!isSupabaseConfigured()) {
+      return {
+        success: false,
+        error: "Database is not configured. Please contact support.",
+      }
+    }
 
-  if (!name || !email || !comment) {
+    const name = formData.get("name") as string
+    const email = formData.get("email") as string
+    const comment = formData.get("comment") as string
+    const articleSlug = formData.get("articleSlug") as string
+    const articleType = (formData.get("articleType") as string) || "newsletter"
+
+    if (!name || !email || !comment) {
+      return {
+        success: false,
+        message: "All fields are required",
+      }
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return {
+        success: false,
+        message: "Please provide a valid email address",
+      }
+    }
+
+    const result = await addComment(email, comment, articleSlug, articleType, name)
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || "Failed to submit comment. Please try again.",
+      }
+    }
+
+    return {
+      success: true,
+      message: "Comment submitted successfully!",
+    }
+  } catch (error) {
+    console.error("Comment submission error:", error)
     return {
       success: false,
-      message: "All fields are required",
+      error: "Failed to submit comment. Please try again later.",
     }
-  }
-
-  return {
-    success: true,
-    message: "Comment submitted successfully!",
   }
 }
 
@@ -485,8 +547,43 @@ export async function sendCommentNotification(
   comment: string,
   articleType: "blog" | "newsletter",
 ): Promise<EmailResult> {
-  return {
-    success: true,
-    message: "Comment notification sent",
+  try {
+    const subject = "Thank you for your comment!"
+    const content = `
+      <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+        Hi ${commenterName},
+      </p>
+      <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+        Thank you for commenting on "${articleTitle}". We appreciate you taking the time to share your thoughts!
+      </p>
+      <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
+        If you'd like to stay updated with our latest content, consider subscribing to our newsletter.
+      </p>
+      <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+        <strong>Stay Late.</strong><br/>
+        The best things are always worth the wait ;)
+      </p>
+      <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+        – The LATE Team
+      </p>
+    `
+
+    const body = await createEmailTemplate(subject, content)
+    const result = await sendMicrosoftGraphEmail({
+      to: commenterEmail,
+      subject,
+      body,
+    })
+
+    return {
+      success: result.success,
+      message: result.success ? "Notification sent" : "Failed to send notification",
+    }
+  } catch (error) {
+    console.error("Comment notification error:", error)
+    return {
+      success: false,
+      error: "Failed to send notification",
+    }
   }
 }
