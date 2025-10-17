@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import * as Tabs from "@radix-ui/react-tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mail, MessageSquare, Palette, UserCheck, Radio, Send, CheckCircle, AlertCircle, RefreshCw } from "lucide-react"
 
 interface EmailStats {
@@ -237,33 +237,33 @@ The best things are always worth the wait ;)
           ))}
         </div>
 
-        <Tabs.Root value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-6">
-          <Tabs.List className="grid grid-cols-3 lg:grid-cols-6 bg-zinc-900">
-            <Tabs.Trigger value="newsletter" className="data-[state=active]:bg-blue-600">
+        <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-6">
+          <TabsList className="grid grid-cols-3 lg:grid-cols-6 bg-zinc-900">
+            <TabsTrigger value="newsletter" className="data-[state=active]:bg-blue-600">
               <Mail className="w-4 h-4 mr-2" />
               Newsletter
-            </Tabs.Trigger>
-            <Tabs.Trigger value="shop" className="data-[state=active]:bg-green-600">
+            </TabsTrigger>
+            <TabsTrigger value="shop" className="data-[state=active]:bg-green-600">
               <Radio className="w-4 h-4 mr-2" />
               Shop
-            </Tabs.Trigger>
-            <Tabs.Trigger value="podcast" className="data-[state=active]:bg-red-600">
+            </TabsTrigger>
+            <TabsTrigger value="podcast" className="data-[state=active]:bg-red-600">
               <Radio className="w-4 h-4 mr-2" />
               Podcast
-            </Tabs.Trigger>
-            <Tabs.Trigger value="auction-collector" className="data-[state=active]:bg-purple-600">
+            </TabsTrigger>
+            <TabsTrigger value="auction-collector" className="data-[state=active]:bg-purple-600">
               <UserCheck className="w-4 h-4 mr-2" />
               Collectors
-            </Tabs.Trigger>
-            <Tabs.Trigger value="auction-creator" className="data-[state=active]:bg-pink-600">
+            </TabsTrigger>
+            <TabsTrigger value="auction-creator" className="data-[state=active]:bg-pink-600">
               <Palette className="w-4 h-4 mr-2" />
               Creators
-            </Tabs.Trigger>
-            <Tabs.Trigger value="contact" className="data-[state=active]:bg-orange-600">
+            </TabsTrigger>
+            <TabsTrigger value="contact" className="data-[state=active]:bg-orange-600">
               <MessageSquare className="w-4 h-4 mr-2" />
               Contact
-            </Tabs.Trigger>
-          </Tabs.List>
+            </TabsTrigger>
+          </TabsList>
 
           {/* Email Template Content */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
