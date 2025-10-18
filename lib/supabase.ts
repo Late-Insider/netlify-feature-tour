@@ -1,4 +1,5 @@
-import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
+console.log("🔄 lib/supabase.ts is loading...")
+  import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
 
 // Lazy initialization to ensure environment variables are available at runtime
 let supabaseInstance: SupabaseClient | null = null
@@ -41,6 +42,7 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export async function testSupabaseConnection() {
+  console.log("🔄 testSupabaseConnection function called")
   const client = getSupabaseClient()
   if (!client) {
     return { success: false, error: "Supabase not configured" }
