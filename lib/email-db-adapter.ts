@@ -2,7 +2,7 @@ import {
   addSubscriber as supabaseAddSubscriber, 
   addContactSubmission as supabaseAddContact,
   addCreatorApplication as supabaseAddCreator 
-} from "./supabase-db"
+} from "./supabase"
 
 // Adapt the function signatures to match what your email-actions expects
 export async function addSubscriber(data: {
