@@ -2,7 +2,7 @@
 
 import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
 import { generateUnsubscribeUrl, generateUnsubscribeToken } from "@/lib/unsubscribe"
-import { addSubscriber, addContactSubmission, addCreatorApplication } from "@/lib/db"
+import { addSubscriber, addContactSubmission, addCreatorApplication } from "@/lib/email-db-adapter"
 
 type EmailCategory = "newsletter" | "shop" | "podcast" | "auction-collector" | "auction-creator" | "contact"
 
