@@ -1,7 +1,6 @@
 "use server"
 
 import { Client } from "@microsoft/microsoft-graph-client"
-import "isomorphic-fetch"
 
 interface EmailParams {
   to: string
