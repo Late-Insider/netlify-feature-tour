@@ -16,13 +16,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    // Add to database
-    const result = await addContactSubmission({ email, name, message })
+    const record = await addContactSubmission(name ?? "", email, message ?? "")
+
+    if (!record) {
+      return NextResponse.json(
+        { error: "Contact form is temporarily offline. Please try again soon." },
+        { status: 503 },
+      )
+    }
 
     return NextResponse.json({
       success: true,
       message: "Thank you for your message! We will get back to you soon.",
-      data: result,
+      data: record,
     })
   } catch (error) {
     console.error("Contact submission error:", error)

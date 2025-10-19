@@ -1,7 +1,7 @@
 "use server"
 
 import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
-import { createClient } from "@/lib/supabase"
+import { createServiceRoleClient } from "@/lib/supabase"
 
 interface ScheduledEmail {
   id: string
@@ -15,7 +15,10 @@ interface ScheduledEmail {
 
 export async function sendScheduledEmails(): Promise<{ success: boolean; sent: number; failed: number }> {
   try {
-    const supabase = createClient()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return { success: false, sent: 0, failed: 0 }
+    }
     const now = new Date().toISOString()
 
     const { data: pendingEmails, error } = await supabase
@@ -81,7 +84,10 @@ export async function scheduleNewsletterEmail(
   scheduledFor: Date,
 ): Promise<{ success: boolean; emailId?: string }> {
   try {
-    const supabase = createClient()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return { success: false }
+    }
 
     const htmlContent = await createEmailTemplate(subject, content)
 
@@ -117,7 +123,10 @@ export async function getEmailStatistics(): Promise<{
   scheduled: number
 }> {
   try {
-    const supabase = createClient()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return { total: 0, sent: 0, pending: 0, scheduled: 0 }
+    }
 
     const { data: allEmails, error } = await supabase.from("scheduled_emails").select("sent, scheduled_for")
 
@@ -295,7 +304,13 @@ export async function getSubscriberStats(): Promise<{
   error?: string
 }> {
   try {
-    const supabase = createClient()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return {
+        success: false,
+        error: "Supabase not configured",
+      }
+    }
 
     const { data: subscribers, error: subscribersError } = await supabase
       .from("subscribers")

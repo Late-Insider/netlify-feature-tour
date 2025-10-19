@@ -1,7 +1,7 @@
 "use server"
 
 import { sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
-import { createClient } from "@/lib/supabase"
+import { createServiceRoleClient } from "@/lib/supabase"
 import { generateUnsubscribeUrl } from "@/lib/unsubscribe"
 
 interface EmailData {
@@ -19,7 +19,10 @@ export async function scheduleEmail(data: EmailData): Promise<{
   message: string
 }> {
   try {
-    const supabase = createClient()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return { success: false, message: "Supabase is not configured" }
+    }
 
     const { data: emailRecord, error } = await supabase
       .from("scheduled_emails")
@@ -63,7 +66,10 @@ export async function sendPendingEmails(): Promise<{
   failedCount: number
 }> {
   try {
-    const supabase = createClient()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return { success: false, sentCount: 0, failedCount: 0 }
+    }
 
     const { data: pendingEmails, error: fetchError } = await supabase
       .from("scheduled_emails")
@@ -241,7 +247,14 @@ export async function sendNewsletterToSubscribers(
   message: string
 }> {
   try {
-    const supabase = createClient()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return {
+        success: false,
+        scheduledCount: 0,
+        message: "Supabase is not configured",
+      }
+    }
 
     const { data: subscribers, error } = await supabase
       .from("subscribers")
@@ -314,7 +327,16 @@ export async function getEmailStats(): Promise<{
   byType: Record<string, { total: number; sent: number; pending: number }>
 }> {
   try {
-    const supabase = createClient()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return {
+        total: 0,
+        sent: 0,
+        pending: 0,
+        failed: 0,
+        byType: {},
+      }
+    }
 
     const { data: stats, error } = await supabase.from("scheduled_emails").select("*")
 

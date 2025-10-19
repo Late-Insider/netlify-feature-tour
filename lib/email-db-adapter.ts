@@ -1,7 +1,7 @@
-import { 
-  addSubscriber as supabaseAddSubscriber, 
+import {
+  addSubscriber as supabaseAddSubscriber,
   addContactSubmission as supabaseAddContact,
-  addCreatorApplication as supabaseAddCreator 
+  addCreatorApplication as supabaseAddCreator,
 } from "./supabase"
 
 // Adapt the function signatures to match what your email-actions expects
@@ -14,11 +14,23 @@ export async function addSubscriber(data: {
   unsubscribeToken?: string
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
-    // For now, ignore unsubscribeToken until we add it to your Supabase table
-    const result = await supabaseAddSubscriber(data.email, data.category)
-    return { success: true, id: result.id }
+    const result = await supabaseAddSubscriber({
+      email: data.email,
+      source: data.category,
+      name: data.name,
+    })
+
+    if (result.disabled) {
+      return { success: false, error: "Supabase is not configured" }
+    }
+
+    if (result.error) {
+      return { success: false, error: result.error }
+    }
+
+    return { success: true, id: (result.data as { id?: string } | null)?.id }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    return { success: false, error: error?.message ?? "Unknown error" }
   }
 }
 
@@ -29,9 +41,13 @@ export async function addContactSubmission(data: {
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const result = await supabaseAddContact(data.name, data.email, data.message)
-    return { success: true, id: result.id }
+    if (!result) {
+      return { success: false, error: "Supabase is not configured" }
+    }
+
+    return { success: true, id: (result as { id?: string }).id }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    return { success: false, error: error?.message ?? "Unknown error" }
   }
 }
 
@@ -43,8 +59,12 @@ export async function addCreatorApplication(data: {
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const result = await supabaseAddCreator(data.name, data.email, data.portfolio, data.message)
-    return { success: true, id: result.id }
+    if (!result) {
+      return { success: false, error: "Supabase is not configured" }
+    }
+
+    return { success: true, id: (result as { id?: string }).id }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    return { success: false, error: error?.message ?? "Unknown error" }
   }
 }

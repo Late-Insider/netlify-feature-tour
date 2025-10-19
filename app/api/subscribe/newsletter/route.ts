@@ -16,6 +16,27 @@ export async function POST(request: NextRequest) {
 
     const result = await addSubscriber({ email, name, category: "newsletter" })
 
+    if (result.disabled) {
+      return NextResponse.json(
+        { error: "Subscriptions are temporarily unavailable. Please try again soon." },
+        { status: 503 },
+      )
+    }
+
+    if (result.error && !result.isNew) {
+      const alreadyExists = result.error.toLowerCase().includes("already exists")
+      return NextResponse.json(
+        {
+          success: alreadyExists,
+          message: alreadyExists
+            ? "You're already subscribed to our newsletter!"
+            : "We couldn't complete your subscription. Please try again shortly.",
+          data: result.data,
+        },
+        { status: alreadyExists ? 200 : 500 },
+      )
+    }
+
     return NextResponse.json({
       success: true,
       message: result.isNew

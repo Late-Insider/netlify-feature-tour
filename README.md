@@ -58,21 +58,24 @@ npm run dev
 
 ## Environment Variables
 
+Configure these variables for both Preview and Production environments in the same Vercel project.
+
 ### Required
 
-- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
-- `POSTGRES_URL` - Postgres connection string
-- `DATABASE_URL` - Database URL
-- `CRON_SECRET` - Secret for cron job authentication
+- `NEXT_PUBLIC_SUPABASE_URL` – Supabase project URL (exposed to the browser)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` – Supabase anonymous key (exposed to the browser)
+- `SUPABASE_SERVICE_ROLE_KEY` – Supabase service role key (server-only)
+- `EMAIL_FROM` – Default From address for outbound emails
+- `EMAIL_PROVIDER_API_KEY` – API key for the active email provider
 
 ### Optional
 
-- `MICROSOFT_CLIENT_ID` - For Microsoft Graph email
-- `MICROSOFT_CLIENT_SECRET` - For Microsoft Graph email
-- `MICROSOFT_TENANT_ID` - For Microsoft Graph email
-- `MICROSOFT_SENDER_EMAIL` - Sender email for Microsoft Graph
-- `RESEND_API_KEY` - For Resend email service
+- `DIAG_ADMIN_TOKEN` – Bearer token required to access `/api/diag/env`
+- `MICROSOFT_CLIENT_ID` – For Microsoft Graph email
+- `MICROSOFT_CLIENT_SECRET` – For Microsoft Graph email
+- `MICROSOFT_TENANT_ID` – For Microsoft Graph email
+- `MICROSOFT_SENDER_EMAIL` – Sender email for Microsoft Graph
+- `RESEND_API_KEY` – For Resend email service
 
 ## API Routes
 
@@ -97,10 +100,10 @@ npm run build
 
 ## Deployment
 
-The project is configured for Vercel deployment with:
-- Automatic environment variable validation
-- Edge-ready API routes
-- Optimized build output
+- Production branch: `main`
+- Production domain: `late.ltd`
+- Merge to `main` to trigger a production deployment (see `docs/deploy.md` for quick reference)
+- Pull requests build as Vercel preview deployments
 
 ## License
 

@@ -6,6 +6,7 @@ import {
   getSubscriberStats,
   isValidEmail,
 } from "@/lib/microsoft-email-automation"
+import { isSupabaseServiceConfigured } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
       }
 
       case "get-stats": {
+        if (!isSupabaseServiceConfigured()) {
+          return NextResponse.json({ disabled: true })
+        }
         const result = await getSubscriberStats()
         return NextResponse.json(result, { status: result.success ? 200 : 500 })
       }
@@ -55,6 +59,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
+    if (!isSupabaseServiceConfigured()) {
+      return NextResponse.json({ disabled: true })
+    }
     const result = await getSubscriberStats()
     return NextResponse.json(result, { status: result.success ? 200 : 500 })
   } catch (error) {
