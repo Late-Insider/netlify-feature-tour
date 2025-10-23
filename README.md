@@ -92,11 +92,22 @@ Configure these variables for both Preview and Production environments in the sa
 - `/api/contact` - Handle contact submissions
 - `/api/creator-applications` - Handle creator applications
 
+
 ## Build
 
-\`\`\`bash
+```bash
 npm run build
-\`\`\`
+```
+
+> ℹ️ Run `npm run build` locally once before the first deploy so the SWC binaries are pinned in the lockfile.
+
+## Quality Gates
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+
+If you must skip linting or type checking in a restricted environment, set `RESTRICTED_ENV=1` (or `SKIP_LINT=1` / `SKIP_TYPES=1`). The preflight runner will emit a warning and exit successfully—make sure to run the commands locally before merging.
 
 ## Deployment
 

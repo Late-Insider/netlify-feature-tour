@@ -1,10 +1,4 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "framework": "nextjs",
-  "production": {
-    "environment": "production"
-  },
   "crons": [
     {
       "path": "/api/email-automation/send-pending",
