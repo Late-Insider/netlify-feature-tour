@@ -20,7 +20,9 @@ export default function NewsletterPage() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-5xl md:text-6xl font-bold mb-6 tracking-tight">WEEKLY INSIGHTS</h1>
-            <p className="text-xl md:text-2xl mb-8 text-purple-100">Thoughtful perspectives on intentional living.</p>
+            <p className="text-xl md:text-2xl mb-8 text-purple-100">
+              Intentional reflections, gathered in one steady cadence.
+            </p>
           </div>
         </div>
       </section>
@@ -63,7 +65,7 @@ export default function NewsletterPage() {
                   <div className="p-6">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-sm font-medium text-purple-600 dark:text-purple-400">{article.date}</span>
-                      <span className="text-xs text-gray-500 dark:text-zinc-500">• {article.readTime}</span>
+                      <span className="text-xs text-gray-500 dark:text-zinc-500">• {article.readTime} min read</span>
                     </div>
 
                     <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white line-clamp-2">

@@ -18,12 +18,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 })
     }
 
-    const result = await addCreatorApplication({ email, name, portfolio_url, message })
+    const record = await addCreatorApplication(name, email, portfolio_url, message)
+
+    if (!record) {
+      return NextResponse.json(
+        { error: "Applications are temporarily unavailable. Please try again soon." },
+        { status: 503 },
+      )
+    }
 
     return NextResponse.json({
       success: true,
       message: "Application submitted! We will review and get back to you soon.",
-      data: result,
+      data: record,
     })
   } catch (error) {
     console.error("Creator application error:", error)

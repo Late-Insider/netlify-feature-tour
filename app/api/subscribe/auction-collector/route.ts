@@ -16,6 +16,27 @@ export async function POST(request: NextRequest) {
 
     const result = await addSubscriber({ email, name, category: "auction-collector" })
 
+    if (result.disabled) {
+      return NextResponse.json(
+        { error: "Collector waitlist is currently offline. Please try later." },
+        { status: 503 },
+      )
+    }
+
+    if (result.error && !result.isNew) {
+      const alreadyExists = result.error.toLowerCase().includes("already exists")
+      return NextResponse.json(
+        {
+          success: alreadyExists,
+          message: alreadyExists
+            ? "You're already on our collector waitlist!"
+            : "We couldn't add you right now. Please try again soon.",
+          data: result.data,
+        },
+        { status: alreadyExists ? 200 : 500 },
+      )
+    }
+
     return NextResponse.json({
       success: true,
       message: result.isNew

@@ -16,6 +16,27 @@ export async function POST(request: NextRequest) {
 
     const result = await addSubscriber({ email, name, category: "podcast" })
 
+    if (result.disabled) {
+      return NextResponse.json(
+        { error: "Podcast alerts are currently offline. Please try later." },
+        { status: 503 },
+      )
+    }
+
+    if (result.error && !result.isNew) {
+      const alreadyExists = result.error.toLowerCase().includes("already exists")
+      return NextResponse.json(
+        {
+          success: alreadyExists,
+          message: alreadyExists
+            ? "You're already subscribed to our podcast!"
+            : "We couldn't add you right now. Please try again soon.",
+          data: result.data,
+        },
+        { status: alreadyExists ? 200 : 500 },
+      )
+    }
+
     return NextResponse.json({
       success: true,
       message: result.isNew

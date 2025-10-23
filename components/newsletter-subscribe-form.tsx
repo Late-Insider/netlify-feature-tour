@@ -6,32 +6,48 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Check, Mail } from "lucide-react"
-import { handleNewsletterSubscription } from "@/actions/email-actions"
 
 export default function NewsletterSubscribeForm() {
-  const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
+    setSuccessMessage("")
 
     const formData = new FormData(e.currentTarget)
+    const email = String(formData.get("email") ?? "").trim()
 
     try {
-      const result = await handleNewsletterSubscription(formData)
-
-      if (result.success) {
-        setIsSubmitted(true)
-        // Reset form after 5 seconds
-        setTimeout(() => {
-          setIsSubmitted(false)
-        }, 5000)
-      } else {
-        setError(result.message || "Something went wrong. Please try again.")
+      if (!email) {
+        setError("Please enter your email address.")
+        return
       }
+
+      const response = await fetch("/api/subscribe/newsletter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          source: "newsletter_form",
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({ ok: false, reason: "Unknown error" }))
+
+      if (!response.ok || !payload.ok) {
+        setError(payload.reason || "Something went wrong. Please try again.")
+        return
+      }
+
+      e.currentTarget.reset()
+      setSuccessMessage("Check your inbox to confirm your subscription.")
+      setTimeout(() => setSuccessMessage(""), 5000)
     } catch (err) {
       setError("Failed to subscribe. Please try again later.")
     } finally {
@@ -39,31 +55,18 @@ export default function NewsletterSubscribeForm() {
     }
   }
 
-  if (isSubmitted) {
-    return (
-      <div className="text-center py-8 animate-fade-in">
-        <div className="flex items-center justify-center mb-4">
-          <div className="bg-purple-600 rounded-full p-3 shadow-lg shadow-purple-500/50">
-            <Check className="w-8 h-8 text-white" />
-          </div>
-        </div>
-        <h3 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">Welcome to the Community!</h3>
-        <p className="text-gray-600 dark:text-zinc-400 mb-4">
-          Check your inbox for a confirmation email. You'll receive our next newsletter soon.
-        </p>
-        <Button
-          onClick={() => setIsSubmitted(false)}
-          variant="outline"
-          className="border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-        >
-          Subscribe Another Email
-        </Button>
-      </div>
-    )
-  }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {successMessage && (
+        <div className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-purple-700 dark:border-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
+          <Check className="mt-0.5 h-5 w-5" />
+          <div>
+            <p className="font-semibold">Subscribed!</p>
+            <p className="text-sm">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
       <div>
         <Input
           type="text"

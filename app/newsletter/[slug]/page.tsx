@@ -39,7 +39,7 @@ export default function NewsletterArticlePage({ params }: { params: { slug: stri
   const articleUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://late-website.vercel.app"}/newsletter/${params.slug}`
 
   return (
-    <div className="min-h-screen py-20 px-4">
+    <div className="min-h-screen bg-white dark:bg-black py-20 px-4">
       <article className="container mx-auto max-w-4xl">
         {/* Back Button */}
         <Link href="/newsletter">
@@ -73,7 +73,7 @@ export default function NewsletterArticlePage({ params }: { params: { slug: stri
 
         {/* Article Content */}
         <div
-          className="prose prose-lg dark:prose-invert max-w-none mb-12 prose-headings:font-bold prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-6 prose-p:mb-6 prose-p:leading-relaxed prose-strong:text-lg prose-strong:font-bold"
+          className="prose prose-lg dark:prose-invert max-w-none mb-12 prose-headings:font-bold prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-6 prose-h3:text-2xl prose-h3:mt-8 prose-h3:mb-4 prose-p:mb-6 prose-p:leading-relaxed prose-ul:space-y-2 prose-li:leading-relaxed prose-strong:text-lg prose-strong:font-bold"
           dangerouslySetInnerHTML={{ __html: article.content }}
         />
 
