@@ -102,7 +102,37 @@ function runWeeklyInsightsSnapshot() {
   assert.equal(markup, expected, 'WeeklyInsights snapshot should match the stored markup')
 }
 
+function runSubscriberInsertPayloadTests() {
+  const supabase = loadModule(path.resolve(projectRoot, 'lib/supabase.ts'))
+  const { buildSubscriberInsertPayload } = supabase
+
+  const withSource = buildSubscriberInsertPayload({
+    email: 'test@example.com',
+    category: 'newsletter',
+    status: 'pending',
+    source: 'landing-page',
+    hasSourceColumn: true,
+  })
+
+  assert.equal(withSource.source, 'landing-page', 'Should include source when column is available')
+
+  const withoutSource = buildSubscriberInsertPayload({
+    email: 'test@example.com',
+    category: 'newsletter',
+    status: 'pending',
+    source: 'landing-page',
+    hasSourceColumn: false,
+  })
+
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(withoutSource, 'source'),
+    false,
+    'Should omit source when column is missing',
+  )
+}
+
 runNewsletterDataAssertions()
 runWeeklyInsightsSnapshot()
+runSubscriberInsertPayloadTests()
 
 console.log('All newsletter tests passed.')

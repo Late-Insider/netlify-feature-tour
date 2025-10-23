@@ -127,9 +127,59 @@ export async function testSupabaseConnection() {
   }
 }
 
-type SubscriberInput =
-  | { email: string; source: string; name?: string; unsubscribeToken?: string }
-  | { email: string; category: string; name?: string; unsubscribeToken?: string }
+type SubscriberInput = {
+  email: string
+  category?: string
+  source?: string | null
+  status?: "pending" | "confirmed" | "unsubscribed" | "bounced"
+}
+
+interface SubscriberSchemaState {
+  hasSource: boolean
+}
+
+let subscriberSchemaState: SubscriberSchemaState | null = null
+let subscriberSchemaPromise: Promise<SubscriberSchemaState> | null = null
+let subscriberSchemaWarned = false
+
+async function ensureSubscriberSchema(client: SupabaseClient): Promise<SubscriberSchemaState> {
+  if (subscriberSchemaState) {
+    return subscriberSchemaState
+  }
+
+  if (!subscriberSchemaPromise) {
+    subscriberSchemaPromise = (async () => {
+      let hasSource = true
+
+      const { error } = await client.from("subscribers").select("source").limit(0)
+      if (error) {
+        const supabaseError = error as { code?: string; message?: string }
+        const code = supabaseError.code ?? ""
+        const message = supabaseError.message ?? ""
+        if (code === "42703" || /column\s+"?source"?/i.test(message)) {
+          hasSource = false
+          if (!subscriberSchemaWarned) {
+            console.warn(
+              JSON.stringify({
+                level: "warn",
+                scope: "subscribers-schema",
+                message: "column 'source' missing",
+              }),
+            )
+            subscriberSchemaWarned = true
+          }
+        } else {
+          throw error
+        }
+      }
+
+      subscriberSchemaState = { hasSource }
+      return subscriberSchemaState
+    })()
+  }
+
+  return subscriberSchemaPromise
+}
 
 export interface AddSubscriberResult {
   data: Record<string, unknown> | null
@@ -138,44 +188,69 @@ export interface AddSubscriberResult {
   error?: string
 }
 
-export async function addSubscriber(input: SubscriberInput): Promise<AddSubscriberResult> {
-  const source = "source" in input ? input.source : input.category
-  const name = "name" in input ? input.name : undefined
+export interface BuildSubscriberInsertInput {
+  email: string
+  category: string
+  status: "pending" | "confirmed" | "unsubscribed" | "bounced"
+  source?: string | null
+  hasSourceColumn: boolean
+}
 
+export function buildSubscriberInsertPayload(input: BuildSubscriberInsertInput): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    email: input.email,
+    category: input.category,
+    status: input.status,
+  }
+
+  if (input.hasSourceColumn) {
+    payload.source = input.source ?? null
+  }
+
+  return payload
+}
+
+export async function addSubscriber(input: SubscriberInput): Promise<AddSubscriberResult> {
   const client = getServiceClient()
   if (!client) {
     return { data: null, isNew: false, disabled: true, error: "Supabase not configured" }
   }
 
+  let schema: SubscriberSchemaState
   try {
-    const { data, error } = await client
-      .from("subscribers")
-      .insert({
-        email: input.email,
-        name: name ?? null,
-        source,
-        is_active: true,
-        subscribed_at: new Date().toISOString(),
-      })
-      .select()
-      .single()
-
-    if (error) {
-      const supabaseError = error as { code?: string; message?: string }
-      if (supabaseError.code === "23505") {
-        return { data: null, isNew: false, error: "Subscriber already exists" }
-      }
-      return { data: null, isNew: false, error: supabaseError.message ?? "Failed to add subscriber" }
-    }
-
-    return { data: data as Record<string, unknown>, isNew: true }
+    schema = await ensureSubscriberSchema(client)
   } catch (error) {
-    return {
-      data: null,
-      isNew: false,
-      error: error instanceof Error ? error.message : "Failed to add subscriber",
-    }
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        scope: "subscribers-schema",
+        message: "failed to inspect schema",
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    )
+    schema = { hasSource: true }
   }
+
+  const category = input.category ?? input.source ?? "newsletter"
+  const insertPayload = buildSubscriberInsertPayload({
+    email: input.email,
+    category,
+    status: input.status ?? "pending",
+    source: input.source ?? null,
+    hasSourceColumn: schema.hasSource,
+  })
+
+  const { data, error } = await client.from("subscribers").insert(insertPayload).select().single()
+
+  if (error) {
+    const supabaseError = error as { code?: string; message?: string }
+    if (supabaseError.code === "23505") {
+      return { data: null, isNew: false, error: "Subscriber already exists" }
+    }
+    return { data: null, isNew: false, error: supabaseError.message ?? "Failed to add subscriber" }
+  }
+
+  return { data: data as Record<string, unknown>, isNew: true }
 }
 
 export async function getSubscriberByEmail(email: string) {

@@ -8,16 +8,14 @@ import {
 export async function addSubscriber(data: {
   email: string
   category: string
-  name?: string
-  portfolio?: string
-  message?: string
-  unsubscribeToken?: string
+  source?: string | null
+  name?: string | null
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const result = await supabaseAddSubscriber({
       email: data.email,
-      source: data.category,
-      name: data.name,
+      category: data.category,
+      source: data.source ?? null,
     })
 
     if (result.disabled) {
