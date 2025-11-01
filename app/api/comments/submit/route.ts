@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const existingSubscriber = await getSubscriberByEmail(email)
     if (!existingSubscriber) {
-      await addSubscriber(email, `${articleType}_comment`)
+      await addSubscriber({ email, source: `${articleType}_comment` })
     }
 
     const success = await processNewComment({
