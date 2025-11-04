@@ -7,7 +7,7 @@ import { getServerClient } from "@/src/lib/supabase-server"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-type SubscriberCategory = "auction-creator"
+type SubscriberCategory = "auction_creator"
 
 type AdminEventKind = "subscriber"
 
@@ -67,7 +67,7 @@ function triggerAdminEvent(kind: AdminEventKind, subject: string, payload: Recor
 
 async function sendSubscriberConfirmation(email: string, category: SubscriberCategory) {
   const templates: Record<SubscriberCategory, { subject: string; content: string }> = {
-    "auction-creator": {
+    "auction_creator": {
       subject: "We've received your Late auction application",
       content: `
         <p>Thank you for submitting your work to the Late auction team. Our curators will review your application and follow up shortly.</p>
@@ -144,10 +144,50 @@ export async function POST(request: NextRequest) {
   const artworkDescription = normalizeOptionalString(raw.artworkDescription)
   const source = normalizeOptionalString(raw.source) ?? "auction_creator_modal"
 
+  const { error: applicationError } = await client
+    .from("creator_applications")
+    .insert({
+      email,
+      name,
+      time_slots: timeSlots,
+      artwork_description: artworkDescription ?? null,
+      source,
+    })
+    .select("id")
+    .single()
+
+  if (applicationError) {
+    const supabaseError = applicationError as {
+      code?: string | null
+      message?: string | null
+      details?: string | null
+    }
+
+    console.error(
+      JSON.stringify({
+        level: "error",
+        scope: "supabase",
+        action: "creator_application_submit",
+        code: supabaseError.code ?? null,
+        details: supabaseError.details ?? supabaseError.message ?? null,
+      }),
+    )
+
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "supabase_error",
+        code: supabaseError.code ?? null,
+        details: supabaseError.details ?? supabaseError.message ?? null,
+      },
+      { status: 400 },
+    )
+  }
+
   const hasSourceColumn = await hasColumn("subscribers", "source")
   const insertPayload = buildSubscriberInsert({
     email,
-    category: "auction-creator",
+    category: "auction_creator",
     status: "pending",
     source,
     hasSourceColumn,
@@ -162,9 +202,9 @@ export async function POST(request: NextRequest) {
   if (error) {
     const supabaseError = error as { code?: string | null; message?: string | null; details?: string | null }
     if (supabaseError.code === "23505") {
-      void sendSubscriberConfirmation(email, "auction-creator")
+      void sendSubscriberConfirmation(email, "auction_creator")
       triggerAdminEvent("subscriber", email, {
-        category: "auction-creator",
+        category: "auction_creator",
         name,
         timeSlots,
         artworkDescription,
@@ -196,9 +236,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  void sendSubscriberConfirmation(email, "auction-creator")
+  void sendSubscriberConfirmation(email, "auction_creator")
   triggerAdminEvent("subscriber", email, {
-    category: "auction-creator",
+    category: "auction_creator",
     name,
     timeSlots,
     artworkDescription,

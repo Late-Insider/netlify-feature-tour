@@ -10,7 +10,7 @@ BEGIN
       'shop',
       'podcast',
       'auction-collector',
-      'auction-creator',
+      'auction_creator',
       'contact'
     );
   ELSE
@@ -22,8 +22,8 @@ BEGIN
     IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'podcast'; END IF;
     PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'auction-collector';
     IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'auction-collector'; END IF;
-    PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'auction-creator';
-    IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'auction-creator'; END IF;
+    PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'auction_creator';
+    IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'auction_creator'; END IF;
     PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'contact';
     IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'contact'; END IF;
   END IF;

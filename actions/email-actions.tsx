@@ -4,7 +4,13 @@ import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-gr
 import { generateUnsubscribeUrl, generateUnsubscribeToken } from "@/lib/unsubscribe"
 import { addSubscriber, addContactSubmission, addCreatorApplication } from "@/lib/email-db-adapter"
 
-type EmailCategory = "newsletter" | "shop" | "podcast" | "auction-collector" | "auction-creator" | "contact"
+type EmailCategory =
+  | "newsletter"
+  | "shop"
+  | "podcast"
+  | "auction-collector"
+  | "auction_creator"
+  | "contact"
 
 interface EmailResult {
   success: boolean
@@ -96,7 +102,7 @@ async function generateUserEmailTemplate(
         ${unsubscribeFooter}
       `,
     },
-    "auction-creator": {
+    "auction_creator": {
       subject: "Your LATE Auction Application is Received",
       content: `
         <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
@@ -191,7 +197,7 @@ function generateAdminEmailContent(
         </div>
       `,
     },
-    "auction-creator": {
+    "auction_creator": {
       subject: "✍️ NEW CREATOR APPLICATION RECEIVED",
       content: `
         <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
@@ -334,14 +340,14 @@ export async function subscribeToAuctionCreator(formData: FormData): Promise<Ema
       }
     }
 
-    const userTemplate = await generateUserEmailTemplate("auction-creator", email)
+    const userTemplate = await generateUserEmailTemplate("auction_creator", email)
     const userResult = await sendMicrosoftGraphEmail({
       to: email,
       subject: userTemplate.subject,
       body: userTemplate.body,
     })
 
-    const adminTemplate = generateAdminEmailContent("auction-creator", email, { name, portfolio, message })
+    const adminTemplate = generateAdminEmailContent("auction_creator", email, { name, portfolio, message })
     const adminBody = await createEmailTemplate(adminTemplate.subject, adminTemplate.content)
     await sendMicrosoftGraphEmail({
       to: ADMIN_EMAIL,

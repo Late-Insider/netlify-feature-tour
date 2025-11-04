@@ -5,7 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "lint": "node scripts/run-task.cjs lint",
+    "lint": "next lint --no-error-on-unmatched-pattern",
     "typecheck": "node scripts/run-task.cjs typecheck",
     "start": "next start",
     "test": "node tests/run-tests.cjs"
@@ -69,6 +69,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.16",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5",
