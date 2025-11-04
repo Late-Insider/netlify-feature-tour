@@ -25,6 +25,7 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+  const [error, setError] = useState<string>("")
 
   const [collectorForm, setCollectorForm] = useState({
     name: "",

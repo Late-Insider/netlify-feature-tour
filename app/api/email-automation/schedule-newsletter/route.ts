@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
     const result = await sendNewsletterToSubscribers(subject, htmlContent, articleSlug)
 
     return NextResponse.json({
-      success: true,
-      scheduled: result.scheduled,
-      failed: result.failed,
+      success: result.success,
+      scheduled: result.scheduledCount,
+      message: result.message,
     })
   } catch (error) {
     console.error("Schedule newsletter error:", error)

@@ -1,7 +1,7 @@
 "use server"
 
 import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
-import { generateUnsubscribeUrl, generateUnsubscribeToken } from "@/lib/unsubscribe"
+import { generateUnsubscribeUrl } from "@/lib/unsubscribe"
 import { addSubscriber, addContactSubmission, addCreatorApplication } from "@/lib/email-db-adapter"
 
 type EmailCategory =
@@ -242,9 +242,8 @@ async function handleSubscription(email: string, category: EmailCategory): Promi
       }
     }
 
-    const unsubscribeToken = generateUnsubscribeToken(email, category)
+    const dbResult = await addSubscriber({ email, category })
 
-    const dbResult = await addSubscriber({ email, category, unsubscribeToken })
     if (!dbResult.success) {
       return {
         success: false,

@@ -145,7 +145,7 @@ export function createServiceRoleClient(): SupabaseClient | null {
   return getServiceClient()
 }
 
-export function createClient(): SupabaseClient | null {
+export function createClient(): SupabaseClient {
   return getServiceClient() ?? getBrowserClient() ?? createNoopSupabaseClient()
 }
 
@@ -172,11 +172,15 @@ export async function testSupabaseConnection() {
   }
 }
 
+type SubscriberStatus = "pending" | "confirmed" | "unsubscribed" | "bounced"
+
 type SubscriberInput = {
   email: string
   category?: string
   source?: string | null
-  status?: "pending" | "confirmed" | "unsubscribed" | "bounced"
+  status?: SubscriberStatus
+  name?: string | null
+  unsubscribeToken?: string | null
 }
 
 export interface AddSubscriberResult {
@@ -189,13 +193,13 @@ export interface AddSubscriberResult {
 export interface BuildSubscriberInsertInput {
   email: string
   category: string
-  status: "pending" | "confirmed" | "unsubscribed" | "bounced"
+  status: SubscriberStatus
   source?: string | null
   hasSourceColumn: boolean
 }
 
-export function buildSubscriberInsert(input: BuildSubscriberInsertInput): Record<string, any> {
-  const payload: Record<string, any> = {
+export function buildSubscriberInsert(input: BuildSubscriberInsertInput): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
     email: input.email,
     category: input.category,
     status: input.status,
@@ -207,6 +211,8 @@ export function buildSubscriberInsert(input: BuildSubscriberInsertInput): Record
 
   return payload
 }
+
+export const buildSubscriberInsertPayload = buildSubscriberInsert
 
 export async function addSubscriber(input: SubscriberInput): Promise<AddSubscriberResult> {
   const client = getServiceClient()

@@ -1,29 +1,23 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import Link from "next/link"
 import { ArrowLeft, Calendar, Clock, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { EnhancedNewsletterReactions } from "@/components/enhanced-newsletter-reactions"
 import { EnhancedNewsletterComments } from "@/components/enhanced-newsletter-comments"
 import { SocialShare } from "@/components/social-share"
-
-interface NewsletterArticle {
-  slug: string
-  title: string
-  excerpt: string
-  content: string
-  date: string
-  readTime: string
-  author: string
-}
+import { getNewsletterArticleBySlug, type NewsletterArticle } from "@/lib/newsletter-articles"
 
 interface NewsletterClientPageProps {
-  article: NewsletterArticle
+  article?: NewsletterArticle | null
+  params?: { slug: string }
+  children?: ReactNode
 }
 
-export function NewsletterClientPage({ article }: NewsletterClientPageProps) {
+export function NewsletterClientPage({ article: providedArticle, params, children }: NewsletterClientPageProps) {
   const [currentUrl, setCurrentUrl] = useState("")
+  const article = providedArticle ?? (params ? getNewsletterArticleBySlug(params.slug) ?? null : null)
 
   useEffect(() => {
     setCurrentUrl(window.location.href)
@@ -51,6 +45,8 @@ export function NewsletterClientPage({ article }: NewsletterClientPageProps) {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="container mx-auto px-4 py-8">
+        {children}
+
         {/* Back Button */}
         <div className="mb-8">
           <Link href="/newsletter">
@@ -112,7 +108,7 @@ export function NewsletterClientPage({ article }: NewsletterClientPageProps) {
 
         {/* Comments */}
         <div className="mb-12">
-          <EnhancedNewsletterComments articleSlug={article.slug} articleTitle={article.title} />
+          <EnhancedNewsletterComments articleSlug={article.slug} />
         </div>
 
         {/* Newsletter Subscription CTA */}

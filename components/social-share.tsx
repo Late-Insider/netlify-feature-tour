@@ -7,6 +7,7 @@ interface SocialShareProps {
   title: string
   url: string
   twitterHandle?: string
+  description?: string
 }
 
 export function SocialShare({ title, url, twitterHandle }: SocialShareProps) {
