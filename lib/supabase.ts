@@ -14,6 +14,7 @@ const SERVICE_KEYS: EnvKey[] = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_RO
 
 let browserClient: SupabaseClient | null = null
 let serviceClient: SupabaseClient | null = null
+const columnPresenceChecks = new Map<string, Promise<boolean>>()
 
 function createNoopSupabaseClient(): SupabaseClient {
   const noopResponse = Promise.resolve({ data: null, error: new Error("Supabase disabled") })
@@ -61,7 +62,7 @@ function getBrowserClient(): SupabaseClient | null {
   }
 
   if (!browserClient) {
-    browserClient = createSupabaseClient(env.supabaseUrl, env.supabaseAnonKey)
+    browserClient = createSupabaseClient(env.url as string, env.anon as string)
   }
 
   return browserClient
@@ -84,12 +85,56 @@ function getServiceClient(): SupabaseClient | null {
       return null
     }
 
-    serviceClient = createSupabaseClient(env.supabaseUrl, serviceKey, {
+    serviceClient = createSupabaseClient(env.url as string, serviceKey, {
       auth: { persistSession: false },
     })
   }
 
   return serviceClient
+}
+
+export async function hasColumn(table: string, column: string): Promise<boolean> {
+  const cacheKey = `${table}:${column}`
+  const cached = columnPresenceChecks.get(cacheKey)
+  if (cached) {
+    return cached
+  }
+
+  const promise = (async () => {
+    const client = getServiceClient()
+    if (!client) {
+      return false
+    }
+
+    const { error } = await client.from(table).select(column).limit(0)
+    if (!error) {
+      return true
+    }
+
+    const supabaseError = error as { code?: string; message?: string }
+    const message = supabaseError.message ?? ""
+    const columnPattern = new RegExp(`column\\s+"?${column}"?`, "i")
+
+    if (supabaseError.code === "42703" || columnPattern.test(message)) {
+      return false
+    }
+
+    throw error
+  })().catch((error) => {
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        scope: "supabase-schema",
+        table,
+        column,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    )
+    return false
+  })
+
+  columnPresenceChecks.set(cacheKey, promise)
+  return promise
 }
 
 export function createBrowserClient(): SupabaseClient | null {
@@ -100,7 +145,7 @@ export function createServiceRoleClient(): SupabaseClient | null {
   return getServiceClient()
 }
 
-export function createClient(): SupabaseClient | null {
+export function createClient(): SupabaseClient {
   return getServiceClient() ?? getBrowserClient() ?? createNoopSupabaseClient()
 }
 
@@ -127,58 +172,15 @@ export async function testSupabaseConnection() {
   }
 }
 
+type SubscriberStatus = "pending" | "confirmed" | "unsubscribed" | "bounced"
+
 type SubscriberInput = {
   email: string
   category?: string
   source?: string | null
-  status?: "pending" | "confirmed" | "unsubscribed" | "bounced"
-}
-
-interface SubscriberSchemaState {
-  hasSource: boolean
-}
-
-let subscriberSchemaState: SubscriberSchemaState | null = null
-let subscriberSchemaPromise: Promise<SubscriberSchemaState> | null = null
-let subscriberSchemaWarned = false
-
-async function ensureSubscriberSchema(client: SupabaseClient): Promise<SubscriberSchemaState> {
-  if (subscriberSchemaState) {
-    return subscriberSchemaState
-  }
-
-  if (!subscriberSchemaPromise) {
-    subscriberSchemaPromise = (async () => {
-      let hasSource = true
-
-      const { error } = await client.from("subscribers").select("source").limit(0)
-      if (error) {
-        const supabaseError = error as { code?: string; message?: string }
-        const code = supabaseError.code ?? ""
-        const message = supabaseError.message ?? ""
-        if (code === "42703" || /column\s+"?source"?/i.test(message)) {
-          hasSource = false
-          if (!subscriberSchemaWarned) {
-            console.warn(
-              JSON.stringify({
-                level: "warn",
-                scope: "subscribers-schema",
-                message: "column 'source' missing",
-              }),
-            )
-            subscriberSchemaWarned = true
-          }
-        } else {
-          throw error
-        }
-      }
-
-      subscriberSchemaState = { hasSource }
-      return subscriberSchemaState
-    })()
-  }
-
-  return subscriberSchemaPromise
+  status?: SubscriberStatus
+  name?: string | null
+  unsubscribeToken?: string | null
 }
 
 export interface AddSubscriberResult {
@@ -191,12 +193,12 @@ export interface AddSubscriberResult {
 export interface BuildSubscriberInsertInput {
   email: string
   category: string
-  status: "pending" | "confirmed" | "unsubscribed" | "bounced"
+  status: SubscriberStatus
   source?: string | null
   hasSourceColumn: boolean
 }
 
-export function buildSubscriberInsertPayload(input: BuildSubscriberInsertInput): Record<string, unknown> {
+export function buildSubscriberInsert(input: BuildSubscriberInsertInput): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     email: input.email,
     category: input.category,
@@ -210,34 +212,22 @@ export function buildSubscriberInsertPayload(input: BuildSubscriberInsertInput):
   return payload
 }
 
+export const buildSubscriberInsertPayload = buildSubscriberInsert
+
 export async function addSubscriber(input: SubscriberInput): Promise<AddSubscriberResult> {
   const client = getServiceClient()
   if (!client) {
     return { data: null, isNew: false, disabled: true, error: "Supabase not configured" }
   }
 
-  let schema: SubscriberSchemaState
-  try {
-    schema = await ensureSubscriberSchema(client)
-  } catch (error) {
-    console.warn(
-      JSON.stringify({
-        level: "warn",
-        scope: "subscribers-schema",
-        message: "failed to inspect schema",
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    )
-    schema = { hasSource: true }
-  }
-
   const category = input.category ?? input.source ?? "newsletter"
-  const insertPayload = buildSubscriberInsertPayload({
+  const hasSourceColumn = await hasColumn("subscribers", "source")
+  const insertPayload = buildSubscriberInsert({
     email: input.email,
     category,
     status: input.status ?? "pending",
     source: input.source ?? null,
-    hasSourceColumn: schema.hasSource,
+    hasSourceColumn,
   })
 
   const { data, error } = await client.from("subscribers").insert(insertPayload).select().single()

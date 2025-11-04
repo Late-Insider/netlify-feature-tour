@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Check, Mail } from "lucide-react"
 
+const ERROR_MESSAGES: Record<string, string> = {
+  supabase_env_missing: "Service is temporarily unavailable. Please try again.",
+  invalid_input: "Please check your input.",
+  supabase_error: "We couldn’t save your request. Please try again.",
+}
+
 export default function NewsletterSubscribeForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -38,18 +44,23 @@ export default function NewsletterSubscribeForm() {
         }),
       })
 
-      const payload = await response.json().catch(() => ({ ok: false, reason: "Unknown error" }))
+      const payload = await response.json().catch(() => ({ ok: false }))
 
       if (!response.ok || !payload.ok) {
-        setError(payload.reason || "Something went wrong. Please try again.")
+        const reason: string | undefined = payload?.reason
+        setError(reason && ERROR_MESSAGES[reason] ? ERROR_MESSAGES[reason] : "We couldn’t save your request. Please try again.")
         return
       }
 
       e.currentTarget.reset()
-      setSuccessMessage("Check your inbox to confirm your subscription.")
+      setSuccessMessage(
+        payload.alreadySubscribed
+          ? "You're already on the list. We'll keep you posted."
+          : "Check your inbox to confirm your subscription.",
+      )
       setTimeout(() => setSuccessMessage(""), 5000)
     } catch (err) {
-      setError("Failed to subscribe. Please try again later.")
+      setError("We couldn’t save your request. Please try again.")
     } finally {
       setIsLoading(false)
     }

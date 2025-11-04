@@ -1,5 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
+
 import { addSubscriber, isSupabaseConfigured } from "@/lib/supabase"
+
+interface PodcastSubscribeRequestBody {
+  email?: unknown
+  name?: unknown
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,14 +13,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database is not configured. Please contact support." }, { status: 503 })
     }
 
-    const body = await request.json()
-    const { email, name } = body
+    const body = (await request.json().catch(() => null)) as PodcastSubscribeRequestBody | null
+    const email = typeof body?.email === "string" ? body.email : ""
 
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    const result = await addSubscriber({ email, name, category: "podcast" })
+    const result = await addSubscriber({ email, category: "podcast" })
 
     if (result.disabled) {
       return NextResponse.json(

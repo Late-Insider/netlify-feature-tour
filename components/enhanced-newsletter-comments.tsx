@@ -18,10 +18,9 @@ interface Comment {
 
 interface EnhancedNewsletterCommentsProps {
   articleSlug: string
-  articleTitle: string
 }
 
-export function EnhancedNewsletterComments({ articleSlug, articleTitle }: EnhancedNewsletterCommentsProps) {
+export function EnhancedNewsletterComments({ articleSlug }: EnhancedNewsletterCommentsProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")

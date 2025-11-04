@@ -63,13 +63,13 @@ export default function EmailAutomationPage() {
           },
           {
             category: "Auction Collectors",
-            count: data.counts["auction-collector"] || 0,
+            count: data.counts["auction_waitlist_collector"] || 0,
             icon: <UserCheck className="w-4 h-4" />,
             color: "bg-purple-500",
           },
           {
             category: "Auction Creators",
-            count: data.counts["auction-creator"] || 0,
+            count: data.counts["auction_waitlist_creator"] || 0,
             icon: <Palette className="w-4 h-4" />,
             color: "bg-pink-500",
           },
@@ -164,7 +164,7 @@ The best things are always worth the wait ;)
 
 Want to change how you receive these emails? You can unsubscribe from this list here.`,
       },
-      "auction-collector": {
+      "auction_waitlist_collector": {
         subject: "Welcome to The LATE Auction Waitlist",
         content: `You're on the list! Thank you for joining the LATE Auction Waitlist. You'll receive an exclusive early access link before our next auction goes live.
 
@@ -175,7 +175,7 @@ The best things are always worth the wait ;)
 
 Want to change how you receive these emails? You can unsubscribe from this list here.`,
       },
-      "auction-creator": {
+      "auction_waitlist_creator": {
         subject: "Your LATE Auction Application is Received",
         content: `Thank you for your application! We appreciate your interest in collaborating with us. Our team is reviewing your submission and will be in touch soon.
 
@@ -251,11 +251,11 @@ The best things are always worth the wait ;)
               <Radio className="w-4 h-4 mr-2" />
               Podcast
             </TabsTrigger>
-            <TabsTrigger value="auction-collector" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="auction_waitlist_collector" className="data-[state=active]:bg-purple-600">
               <UserCheck className="w-4 h-4 mr-2" />
               Collectors
             </TabsTrigger>
-            <TabsTrigger value="auction-creator" className="data-[state=active]:bg-pink-600">
+            <TabsTrigger value="auction_waitlist_creator" className="data-[state=active]:bg-pink-600">
               <Palette className="w-4 h-4 mr-2" />
               Creators
             </TabsTrigger>

@@ -7,7 +7,11 @@ import { Mail, Instagram, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { handleContactForm } from "@/actions/email-actions"
+const ERROR_MESSAGES: Record<string, string> = {
+  supabase_env_missing: "Service is temporarily unavailable. Please try again.",
+  invalid_input: "Please check your input.",
+  supabase_error: "We couldn’t save your request. Please try again.",
+}
 
 // Custom X (Twitter) icon component
 const XIcon = ({ className }: { className?: string }) => (
@@ -39,24 +43,32 @@ export default function ContactSection() {
     setError("")
 
     try {
-      const formDataObj = new FormData()
-      formDataObj.set("name", formData.name)
-      formDataObj.set("email", formData.email)
-      formDataObj.set("message", formData.message)
-      formDataObj.set("form-name", "contact-form")
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          message: formData.message,
+        }),
+      })
 
-      const result = await handleContactForm(formDataObj)
+      const payload = await response.json().catch(() => ({ ok: false }))
 
-      if (result.success) {
-        setIsSubmitted(true)
-        setEmailSent(result.emailSent || false)
-        setFormData({ name: "", email: "", message: "" })
-      } else {
-        setError(result.message || "Failed to send message. Please try again.")
+      if (!response.ok || !payload.ok) {
+        const reason: string | undefined = payload?.reason
+        setError(reason && ERROR_MESSAGES[reason] ? ERROR_MESSAGES[reason] : "We couldn’t save your request. Please try again.")
+        return
       }
+
+      setIsSubmitted(true)
+      setEmailSent(true)
+      setFormData({ name: "", email: "", message: "" })
     } catch (error) {
       console.error("Error submitting form:", error)
-      setError("An unexpected error occurred. Please try again.")
+      setError("We couldn’t save your request. Please try again.")
     } finally {
       setIsSending(false)
     }

@@ -1,9 +1,20 @@
 import { type NextRequest } from "next/server"
 
-const rawEnv = {
+type RawEnv = {
+  NEXT_PUBLIC_SUPABASE_URL?: string
+  NEXT_PUBLIC_SUPABASE_ANON_KEY?: string
+  SUPABASE_SERVICE_ROLE_KEY?: string
+  NEXT_PUBLIC_SITE_URL?: string
+  EMAIL_FROM?: string
+  EMAIL_PROVIDER_API_KEY?: string
+  DIAG_ADMIN_TOKEN?: string
+}
+
+const rawEnv: RawEnv = {
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   EMAIL_FROM: process.env.EMAIL_FROM,
   EMAIL_PROVIDER_API_KEY: process.env.EMAIL_PROVIDER_API_KEY,
   DIAG_ADMIN_TOKEN: process.env.DIAG_ADMIN_TOKEN,
@@ -14,7 +25,7 @@ const runtimeEnv = {
   VERCEL_ENV: process.env.VERCEL_ENV,
 }
 
-export type EnvKey = keyof typeof rawEnv
+export type EnvKey = keyof RawEnv
 const requiredKeys: EnvKey[] = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
@@ -49,26 +60,38 @@ warn(
   requiredKeys.filter((key) => !rawEnv[key]),
 )
 
-export const env = {
-  supabaseUrl: rawEnv.NEXT_PUBLIC_SUPABASE_URL ?? "",
-  supabaseAnonKey: rawEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
-  emailFrom: rawEnv.EMAIL_FROM ?? "",
-  emailProviderApiKey: rawEnv.EMAIL_PROVIDER_API_KEY ?? "",
+interface EnvConfig {
+  url: string | undefined
+  anon: string | undefined
+  service: string | undefined
+  site: string
 }
+
+export const env: EnvConfig = {
+  url: rawEnv.NEXT_PUBLIC_SUPABASE_URL,
+  anon: rawEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  service: rawEnv.SUPABASE_SERVICE_ROLE_KEY,
+  site: rawEnv.NEXT_PUBLIC_SITE_URL || "https://late.ltd",
+}
+
+export const hasUrl = Boolean(env.url)
+export const hasAnon = Boolean(env.anon)
+export const hasService = Boolean(env.service)
+export const hasSite = Boolean(env.site)
 
 export function getSupabaseServiceRoleKey(): string | undefined {
   if (typeof window !== "undefined") {
     return undefined
   }
-  return rawEnv.SUPABASE_SERVICE_ROLE_KEY
+  return env.service
 }
 
 export function hasSupabaseBrowserConfig(): boolean {
-  return Boolean(rawEnv.NEXT_PUBLIC_SUPABASE_URL && rawEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  return Boolean(env.url && env.anon)
 }
 
 export function hasSupabaseServiceConfig(): boolean {
-  return Boolean(rawEnv.NEXT_PUBLIC_SUPABASE_URL && rawEnv.SUPABASE_SERVICE_ROLE_KEY)
+  return Boolean(env.url && env.service)
 }
 
 export function hasEmailConfig(): boolean {
@@ -77,9 +100,9 @@ export function hasEmailConfig(): boolean {
 
 export function getEnvDiagnostics() {
   return {
-    hasUrl: Boolean(rawEnv.NEXT_PUBLIC_SUPABASE_URL),
-    hasAnon: Boolean(rawEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-    hasService: Boolean(rawEnv.SUPABASE_SERVICE_ROLE_KEY),
+    hasUrl,
+    hasAnon,
+    hasService,
     hasFrom: Boolean(rawEnv.EMAIL_FROM),
   }
 }
@@ -87,7 +110,7 @@ export function getEnvDiagnostics() {
 export function assertAdminRequest(request: NextRequest): boolean {
   const expectedToken = rawEnv.DIAG_ADMIN_TOKEN
   if (!expectedToken) {
-    warn("diag", ["DIAG_ADMIN_TOKEN" as EnvKey])
+    warn("diag", ["DIAG_ADMIN_TOKEN"])
     return false
   }
 

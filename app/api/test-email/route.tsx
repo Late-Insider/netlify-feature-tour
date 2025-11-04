@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sendMicrosoftEmail, createEmailTemplate } from "@/lib/microsoft-graph"
+import { createEmailTemplate, sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       `
     }
 
-    const htmlContent = createEmailTemplate(subject, content)
+    const htmlContent = await createEmailTemplate(subject, content)
 
     console.log("Attempting to send test email...")
     console.log("Environment variables check:")
@@ -61,7 +61,11 @@ export async function POST(request: NextRequest) {
     console.log("MICROSOFT_TENANT_ID:", process.env.MICROSOFT_TENANT_ID ? "Set" : "Missing")
     console.log("MICROSOFT_SENDER_EMAIL:", process.env.MICROSOFT_SENDER_EMAIL ? "Set" : "Missing")
 
-    const result = await sendMicrosoftEmail(testEmail, subject, htmlContent, content)
+    const result = await sendMicrosoftGraphEmail({
+      to: testEmail,
+      subject,
+      body: htmlContent,
+    })
 
     if (result.success) {
       return NextResponse.json({

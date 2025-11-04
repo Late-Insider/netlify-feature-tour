@@ -6,9 +6,9 @@ export async function POST(request: NextRequest) {
     const result = await sendPendingEmails()
 
     return NextResponse.json({
-      success: true,
-      sent: result.sent,
-      failed: result.failed,
+      success: result.success,
+      sent: result.sentCount,
+      failed: result.failedCount,
     })
   } catch (error) {
     console.error("Send pending emails error:", error)

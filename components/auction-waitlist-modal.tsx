@@ -6,7 +6,11 @@ import { X, Users, Palette, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { handleFormSubmission } from "@/actions/email-actions"
+const ERROR_MESSAGES: Record<string, string> = {
+  supabase_env_missing: "Service is temporarily unavailable. Please try again.",
+  invalid_input: "Please check your input.",
+  supabase_error: "We couldn’t save your request. Please try again.",
+}
 
 interface AuctionWaitlistModalProps {
   isOpen: boolean
@@ -21,6 +25,7 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+  const [error, setError] = useState<string>("")
 
   const [collectorForm, setCollectorForm] = useState({
     name: "",
@@ -61,33 +66,56 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
     setIsSubmitting(true)
 
     try {
-      const formData = new FormData()
-
       if (userType === "collector") {
-        formData.set("name", collectorForm.name)
-        formData.set("email", collectorForm.email)
-        formData.set("timeSlots", collectorForm.timeSlots.join(", "))
-        formData.set("form-name", "auction-collector-waitlist")
-        formData.set("_subject", "LATE Auction - Collector Waitlist Application")
-      } else if (userType === "creator") {
-        formData.set("name", creatorForm.name)
-        formData.set("email", creatorForm.email)
-        formData.set("timeSlots", creatorForm.timeSlots.join(", "))
-        formData.set("artworkDescription", creatorForm.artworkDescription)
-        formData.set("form-name", "auction-creator-application")
-        formData.set("_subject", "LATE Auction - Creator Application Submission")
-      }
+        const response = await fetch("/api/subscribe/auction-collector", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: collectorForm.name,
+            email: collectorForm.email,
+            timeSlots: collectorForm.timeSlots,
+          }),
+        })
 
-      const result = await handleFormSubmission(formData)
+        const payload = await response.json().catch(() => ({}))
 
-      if (result.success) {
+        if (!response.ok) {
+          setError(typeof payload.error === "string" ? payload.error : "We couldn’t save your request. Please try again.")
+          return
+        }
+
         setIsSubmitted(true)
-        setEmailSent(result.emailSent || false)
-      } else {
-        console.error("Form submission failed:", result.message)
+        setEmailSent(true)
+      } else if (userType === "creator") {
+        const response = await fetch("/api/subscribe/auction-creator", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: creatorForm.name,
+            email: creatorForm.email,
+            timeSlots: creatorForm.timeSlots,
+            artworkDescription: creatorForm.artworkDescription,
+          }),
+        })
+
+        const payload = await response.json().catch(() => ({ ok: false }))
+
+        if (!response.ok || !payload.ok) {
+          const reason: string | undefined = payload?.reason
+          setError(reason && ERROR_MESSAGES[reason] ? ERROR_MESSAGES[reason] : "We couldn’t save your request. Please try again.")
+          return
+        }
+
+        setIsSubmitted(true)
+        setEmailSent(!payload.alreadySubscribed)
       }
     } catch (error) {
       console.error("Error submitting form:", error)
+      setError("We couldn’t save your request. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -97,6 +125,7 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
     setUserType(null)
     setIsSubmitted(false)
     setEmailSent(false)
+    setError("")
     setCollectorForm({ name: "", email: "", timeSlots: [] })
     setCreatorForm({ name: "", email: "", timeSlots: [], artworkDescription: "" })
     onClose()
@@ -127,7 +156,10 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
               </p>
 
               <button
-                onClick={() => setUserType("collector")}
+                onClick={() => {
+                  setError("")
+                  setUserType("collector")
+                }}
                 className="w-full p-4 border-2 border-gray-200 dark:border-zinc-600 rounded-lg hover:border-purple-500 dark:hover:border-purple-400 transition-colors group"
               >
                 <div className="flex items-center">
@@ -144,7 +176,10 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
               </button>
 
               <button
-                onClick={() => setUserType("creator")}
+                onClick={() => {
+                  setError("")
+                  setUserType("creator")
+                }}
                 className="w-full p-4 border-2 border-gray-200 dark:border-zinc-600 rounded-lg hover:border-purple-500 dark:hover:border-purple-400 transition-colors group"
               >
                 <div className="flex items-center">
@@ -233,6 +268,10 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
                     className="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-400"
                   />
                 </div>
+              )}
+
+              {error && (
+                <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
               )}
 
               <div className="flex gap-3 pt-4">

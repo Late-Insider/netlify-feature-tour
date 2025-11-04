@@ -2,6 +2,8 @@
 
 import { Client } from "@microsoft/microsoft-graph-client"
 
+import { SITE_URL } from "@/src/lib/site"
+
 interface EmailParams {
   to: string
   subject: string
@@ -107,8 +109,6 @@ export async function sendMicrosoftEmail(
 }
 
 export async function createEmailTemplate(title: string, content: string): Promise<string> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-
   return `
 <!DOCTYPE html>
 <html>
@@ -145,7 +145,7 @@ export async function createEmailTemplate(title: string, content: string): Promi
                 Helping you make the most of every moment
               </p>
               <p style="margin: 10px 0 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                <a href="${siteUrl}" style="color: #9ca3af; text-decoration: underline;">Visit Our Website</a>
+                <a href="${SITE_URL}/" style="color: #9ca3af; text-decoration: underline;">Visit Our Website</a>
               </p>
             </td>
           </tr>

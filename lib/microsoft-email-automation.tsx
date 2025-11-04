@@ -2,6 +2,7 @@
 
 import { sendMicrosoftGraphEmail, createEmailTemplate } from "@/lib/microsoft-graph"
 import { createServiceRoleClient } from "@/lib/supabase"
+import { SITE_URL } from "@/src/lib/site"
 
 interface ScheduledEmail {
   id: string
@@ -178,7 +179,7 @@ export async function sendNewsletterEmail(data: {
       <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 6px;">
         <h3>What's Next?</h3>
         <p>Continue your journey of intentional living with more insights from LATE.</p>
-        <p><a href="https://late.ltd/newsletter" style="color: #6366f1;">Browse All Newsletter Articles</a></p>
+        <p><a href="${SITE_URL}/newsletter" style="color: #6366f1;">Browse All Newsletter Articles</a></p>
       </div>
     `
 
@@ -230,7 +231,7 @@ export async function sendBlogNotification(data: {
       <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 6px;">
         <h3>Stay Connected</h3>
         <p>Don't miss our latest insights on productivity and time management.</p>
-        <p><a href="https://late.ltd/blog" style="color: #6366f1;">Browse All Blog Posts</a></p>
+        <p><a href="${SITE_URL}/blog" style="color: #6366f1;">Browse All Blog Posts</a></p>
       </div>
     `
 
@@ -272,7 +273,7 @@ export async function sendTestEmail(data: {
       <p>If you received this email, the system is functioning properly.</p>
       
       <div style="margin: 30px 0; text-align: center;">
-        <a href="https://late.ltd" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Visit LATE Website</a>
+        <a href="${SITE_URL}/" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Visit LATE Website</a>
       </div>
     `
 

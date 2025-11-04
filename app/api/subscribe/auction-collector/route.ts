@@ -1,5 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
+
 import { addSubscriber, isSupabaseConfigured } from "@/lib/supabase"
+
+interface AuctionCollectorRequestBody {
+  email?: unknown
+  name?: unknown
+  timeSlots?: unknown
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,14 +14,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database is not configured. Please contact support." }, { status: 503 })
     }
 
-    const body = await request.json()
-    const { email, name } = body
+    const body = (await request.json().catch(() => null)) as AuctionCollectorRequestBody | null
+    const email = typeof body?.email === "string" ? body.email : ""
 
     if (!email || !email.includes("@")) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    const result = await addSubscriber({ email, name, category: "auction-collector" })
+    const result = await addSubscriber({ email, category: "auction_waitlist_collector" })
 
     if (result.disabled) {
       return NextResponse.json(

@@ -5,10 +5,11 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "lint": "node scripts/run-task.cjs lint",
-    "typecheck": "node scripts/run-task.cjs typecheck",
+    "lint": "next lint",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "next start",
-    "test": "node tests/run-tests.cjs"
+    "test": "node tests/run-tests.cjs",
+    "prelint": "node scripts/ensure-eslint-config-next.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -69,9 +70,10 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8.57.0",
+    "eslint-config-next": "^14.0.0",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5",
+    "typescript": "^5.3.0",
     "vitest": "^1.6.0"
   }
 }

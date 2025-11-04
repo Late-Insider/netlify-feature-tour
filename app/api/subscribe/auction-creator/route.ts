@@ -1,39 +1,249 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { addCreatorApplication, isSupabaseConfigured } from "@/lib/supabase"
 
-export async function POST(request: NextRequest) {
+import { createEmailTemplate, sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
+import { buildSubscriberInsert, hasColumn } from "@/lib/supabase"
+import { SITE_URL } from "@/src/lib/site"
+import { getServerClient } from "@/src/lib/supabase-server"
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+type SubscriberCategory = "auction_waitlist_creator"
+
+type AdminEventKind = "subscriber"
+
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim().toLowerCase()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function normalizeRequiredString(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function normalizeOptionalString(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function normalizeStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter((entry) => entry.length > 0)
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/[,\n]/)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+  }
+
+  return []
+}
+
+function respondInvalidInput(): NextResponse {
+  return NextResponse.json({ ok: false, reason: "invalid_input" }, { status: 422 })
+}
+
+function triggerAdminEvent(kind: AdminEventKind, subject: string, payload: Record<string, unknown>) {
+  queueMicrotask(() => {
+    console.info(
+      JSON.stringify({
+        level: "info",
+        scope: "admin-event",
+        kind,
+        subject,
+        payload,
+        at: new Date().toISOString(),
+      }),
+    )
+  })
+}
+
+async function sendSubscriberConfirmation(email: string, category: SubscriberCategory) {
+  const templates: Record<SubscriberCategory, { subject: string; content: string }> = {
+    "auction_waitlist_creator": {
+      subject: "We've received your Late auction application",
+      content: `
+        <p>Thank you for submitting your work to the Late auction team. Our curators will review your application and follow up shortly.</p>
+        <p>
+          In the meantime, you can learn more about upcoming releases at
+          <a href="${SITE_URL}/auction">${SITE_URL}/auction</a>.
+        </p>
+        <p>Stay Late.</p>
+      `,
+    },
+  }
+
+  const template = templates[category]
+  if (!template) {
+    return
+  }
+
   try {
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json({ error: "Database is not configured. Please contact support." }, { status: 503 })
-    }
+    const html = await createEmailTemplate(template.subject, template.content)
+    const result = await sendMicrosoftGraphEmail({
+      to: email,
+      subject: template.subject,
+      body: html,
+    })
 
-    const body = await request.json()
-    const { email, name, portfolio_url, message } = body
-
-    if (!email || !email.includes("@")) {
-      return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
-    }
-
-    if (!name) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 })
-    }
-
-    const record = await addCreatorApplication(name, email, portfolio_url, message)
-
-    if (!record) {
-      return NextResponse.json(
-        { error: "Applications are temporarily unavailable. Please try again soon." },
-        { status: 503 },
+    if (!result.success) {
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          scope: "subscriber-confirmation",
+          category,
+          email,
+          error: result.error ?? "unknown_error",
+        }),
       )
     }
-
-    return NextResponse.json({
-      success: true,
-      message: "Application submitted! We will review and get back to you soon.",
-      data: record,
-    })
   } catch (error) {
-    console.error("Creator application error:", error)
-    return NextResponse.json({ error: "Failed to submit application. Please try again." }, { status: 500 })
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        scope: "subscriber-confirmation",
+        category,
+        email,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    )
   }
+}
+
+export async function POST(request: NextRequest) {
+  const client = getServerClient()
+  if (!client) {
+    return NextResponse.json({ ok: false, reason: "supabase_env_missing" }, { status: 503 })
+  }
+
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== "object") {
+    return respondInvalidInput()
+  }
+
+  const raw = body as Record<string, unknown>
+  const email = normalizeEmail(raw.email)
+  if (!email || !EMAIL_PATTERN.test(email)) {
+    return respondInvalidInput()
+  }
+
+  const name = normalizeRequiredString(raw.name)
+  const timeSlots = normalizeStringList(raw.timeSlots)
+
+  if (!name || timeSlots.length === 0) {
+    return respondInvalidInput()
+  }
+
+  const artworkDescription = normalizeOptionalString(raw.artworkDescription)
+  const source = normalizeOptionalString(raw.source) ?? "auction_waitlist_creator_modal"
+
+  const { error: applicationError } = await client
+    .from("creator_applications")
+    .insert({
+      email,
+      name,
+      time_slots: timeSlots,
+      artwork_description: artworkDescription ?? null,
+      source,
+    })
+    .select("id")
+    .single()
+
+  if (applicationError) {
+    const supabaseError = applicationError as {
+      code?: string | null
+      message?: string | null
+      details?: string | null
+    }
+
+    console.error(
+      JSON.stringify({
+        level: "error",
+        scope: "supabase",
+        action: "creator_application_submit",
+        code: supabaseError.code ?? null,
+        details: supabaseError.details ?? supabaseError.message ?? null,
+      }),
+    )
+
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "supabase_error",
+        code: supabaseError.code ?? null,
+        details: supabaseError.details ?? supabaseError.message ?? null,
+      },
+      { status: 400 },
+    )
+  }
+
+  const hasSourceColumn = await hasColumn("subscribers", "source")
+  const insertPayload = buildSubscriberInsert({
+    email,
+    category: "auction_waitlist_creator",
+    status: "pending",
+    source,
+    hasSourceColumn,
+  })
+
+  const { error } = await client
+    .from("subscribers")
+    .insert(insertPayload)
+    .select("id")
+    .single()
+
+  if (error) {
+    const supabaseError = error as { code?: string | null; message?: string | null; details?: string | null }
+    if (supabaseError.code === "23505") {
+      void sendSubscriberConfirmation(email, "auction_waitlist_creator")
+      triggerAdminEvent("subscriber", email, {
+        category: "auction_waitlist_creator",
+        name,
+        timeSlots,
+        artworkDescription,
+        source,
+        duplicate: true,
+      })
+
+      return NextResponse.json({ ok: true, alreadySubscribed: true })
+    }
+
+    console.error(
+      JSON.stringify({
+        level: "error",
+        scope: "supabase",
+        action: "subscribe_auction_creator",
+        code: supabaseError.code ?? null,
+        details: supabaseError.details ?? supabaseError.message ?? null,
+      }),
+    )
+
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "supabase_error",
+        code: supabaseError.code ?? null,
+        details: supabaseError.details ?? supabaseError.message ?? null,
+      },
+      { status: 400 },
+    )
+  }
+
+  void sendSubscriberConfirmation(email, "auction_waitlist_creator")
+  triggerAdminEvent("subscriber", email, {
+    category: "auction_waitlist_creator",
+    name,
+    timeSlots,
+    artworkDescription,
+    source,
+  })
+
+  return NextResponse.json({ ok: true })
 }
