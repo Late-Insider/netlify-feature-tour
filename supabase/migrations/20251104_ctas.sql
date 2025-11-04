@@ -7,25 +7,25 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscriber_category') THEN
     CREATE TYPE public.subscriber_category AS ENUM (
       'newsletter',
-      'shop',
       'podcast',
-      'auction-collector',
-      'auction_creator',
-      'contact'
+      'shop',
+      'contact',
+      'auction_waitlist_collector',
+      'auction_waitlist_creator'
     );
   ELSE
     PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'newsletter';
     IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'newsletter'; END IF;
-    PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'shop';
-    IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'shop'; END IF;
     PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'podcast';
     IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'podcast'; END IF;
-    PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'auction-collector';
-    IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'auction-collector'; END IF;
-    PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'auction_creator';
-    IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'auction_creator'; END IF;
+    PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'shop';
+    IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'shop'; END IF;
     PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'contact';
     IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'contact'; END IF;
+    PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'auction_waitlist_collector';
+    IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'auction_waitlist_collector'; END IF;
+    PERFORM 1 FROM pg_enum WHERE enumtypid = 'subscriber_category'::regtype AND enumlabel = 'auction_waitlist_creator';
+    IF NOT FOUND THEN ALTER TYPE public.subscriber_category ADD VALUE 'auction_waitlist_creator'; END IF;
   END IF;
 END$$;
 

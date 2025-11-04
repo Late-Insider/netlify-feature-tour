@@ -8,8 +8,8 @@ type EmailCategory =
   | "newsletter"
   | "shop"
   | "podcast"
-  | "auction-collector"
-  | "auction_creator"
+  | "auction_waitlist_collector"
+  | "auction_waitlist_creator"
   | "contact"
 
 interface EmailResult {
@@ -24,7 +24,7 @@ async function generateUserEmailTemplate(
   category: EmailCategory,
   email: string,
 ): Promise<{ subject: string; body: string }> {
-  const marketingCategories: EmailCategory[] = ["newsletter", "shop", "podcast", "auction-collector"]
+  const marketingCategories: EmailCategory[] = ["newsletter", "shop", "podcast", "auction_waitlist_collector"]
   const unsubscribeUrl = marketingCategories.includes(category) ? await generateUnsubscribeUrl(email, category) : ""
 
   const unsubscribeFooter = unsubscribeUrl
@@ -86,7 +86,7 @@ async function generateUserEmailTemplate(
         ${unsubscribeFooter}
       `,
     },
-    "auction-collector": {
+    "auction_waitlist_collector": {
       subject: "Welcome to The LATE Auction Waitlist",
       content: `
         <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
@@ -102,7 +102,7 @@ async function generateUserEmailTemplate(
         ${unsubscribeFooter}
       `,
     },
-    "auction_creator": {
+    "auction_waitlist_creator": {
       subject: "Your LATE Auction Application is Received",
       content: `
         <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
@@ -185,7 +185,7 @@ function generateAdminEmailContent(
         </div>
       `,
     },
-    "auction-collector": {
+    "auction_waitlist_collector": {
       subject: "🎨 New Auction Collector",
       content: `
         <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
@@ -197,7 +197,7 @@ function generateAdminEmailContent(
         </div>
       `,
     },
-    "auction_creator": {
+    "auction_waitlist_creator": {
       subject: "✍️ NEW CREATOR APPLICATION RECEIVED",
       content: `
         <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
@@ -302,7 +302,7 @@ export async function subscribeToPodcast(formData: FormData): Promise<EmailResul
 
 export async function subscribeToAuctionCollector(formData: FormData): Promise<EmailResult> {
   const email = formData.get("email") as string
-  return handleSubscription(email, "auction-collector")
+  return handleSubscription(email, "auction_waitlist_collector")
 }
 
 export async function subscribeToAuctionCreator(formData: FormData): Promise<EmailResult> {
@@ -340,14 +340,14 @@ export async function subscribeToAuctionCreator(formData: FormData): Promise<Ema
       }
     }
 
-    const userTemplate = await generateUserEmailTemplate("auction_creator", email)
+    const userTemplate = await generateUserEmailTemplate("auction_waitlist_creator", email)
     const userResult = await sendMicrosoftGraphEmail({
       to: email,
       subject: userTemplate.subject,
       body: userTemplate.body,
     })
 
-    const adminTemplate = generateAdminEmailContent("auction_creator", email, { name, portfolio, message })
+    const adminTemplate = generateAdminEmailContent("auction_waitlist_creator", email, { name, portfolio, message })
     const adminBody = await createEmailTemplate(adminTemplate.subject, adminTemplate.content)
     await sendMicrosoftGraphEmail({
       to: ADMIN_EMAIL,

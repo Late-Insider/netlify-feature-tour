@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    const result = await addSubscriber({ email, name, category: "auction-collector" })
+    const result = await addSubscriber({ email, name, category: "auction_waitlist_collector" })
 
     if (result.disabled) {
       return NextResponse.json(

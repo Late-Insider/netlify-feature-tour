@@ -57,7 +57,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
     newsletter: "Newsletter",
     shop: "Shop Waitlist",
     podcast: "Podcast Notifications",
-    "auction-collector": "Auction Waitlist",
+    "auction_waitlist_collector": "Auction Waitlist",
   }
 
   return (

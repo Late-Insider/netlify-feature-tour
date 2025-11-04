@@ -7,7 +7,7 @@ import { getServerClient } from "@/src/lib/supabase-server"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-type SubscriberCategory = "auction_creator"
+type SubscriberCategory = "auction_waitlist_creator"
 
 type AdminEventKind = "subscriber"
 
@@ -67,7 +67,7 @@ function triggerAdminEvent(kind: AdminEventKind, subject: string, payload: Recor
 
 async function sendSubscriberConfirmation(email: string, category: SubscriberCategory) {
   const templates: Record<SubscriberCategory, { subject: string; content: string }> = {
-    "auction_creator": {
+    "auction_waitlist_creator": {
       subject: "We've received your Late auction application",
       content: `
         <p>Thank you for submitting your work to the Late auction team. Our curators will review your application and follow up shortly.</p>
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
   }
 
   const artworkDescription = normalizeOptionalString(raw.artworkDescription)
-  const source = normalizeOptionalString(raw.source) ?? "auction_creator_modal"
+  const source = normalizeOptionalString(raw.source) ?? "auction_waitlist_creator_modal"
 
   const { error: applicationError } = await client
     .from("creator_applications")
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
   const hasSourceColumn = await hasColumn("subscribers", "source")
   const insertPayload = buildSubscriberInsert({
     email,
-    category: "auction_creator",
+    category: "auction_waitlist_creator",
     status: "pending",
     source,
     hasSourceColumn,
@@ -202,9 +202,9 @@ export async function POST(request: NextRequest) {
   if (error) {
     const supabaseError = error as { code?: string | null; message?: string | null; details?: string | null }
     if (supabaseError.code === "23505") {
-      void sendSubscriberConfirmation(email, "auction_creator")
+      void sendSubscriberConfirmation(email, "auction_waitlist_creator")
       triggerAdminEvent("subscriber", email, {
-        category: "auction_creator",
+        category: "auction_waitlist_creator",
         name,
         timeSlots,
         artworkDescription,
@@ -236,9 +236,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  void sendSubscriberConfirmation(email, "auction_creator")
+  void sendSubscriberConfirmation(email, "auction_waitlist_creator")
   triggerAdminEvent("subscriber", email, {
-    category: "auction_creator",
+    category: "auction_waitlist_creator",
     name,
     timeSlots,
     artworkDescription,
