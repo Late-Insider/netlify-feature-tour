@@ -6,34 +6,52 @@ import { useState } from "react"
 import { ShoppingBag, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { handleFormSubmission } from "@/actions/email-actions"
+
+const ERROR_MESSAGES: Record<string, string> = {
+  supabase_env_missing: "Service is temporarily unavailable. Please try again.",
+  invalid_input: "Please check your input.",
+  supabase_error: "We couldn’t save your request. Please try again.",
+}
 
 export default function ShopTeaser() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+  const [alreadyOnList, setAlreadyOnList] = useState(false)
   const [email, setEmail] = useState("")
+  const [error, setError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSending(true)
+    setError("")
 
     try {
-      const formData = new FormData()
-      formData.set("email", email)
-      formData.set("form-name", "shop-notification")
-      formData.set("_subject", "LATE Shop Notification Request")
+      const response = await fetch("/api/subscribe/shop", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          source: "shop_waitlist",
+        }),
+      })
 
-      const result = await handleFormSubmission(formData)
+      const payload = await response.json().catch(() => ({ ok: false }))
 
-      if (result.success) {
-        setIsSubmitted(true)
-        setEmailSent(result.emailSent || false)
-      } else {
-        console.error("Form submission failed:", result.message)
+      if (!response.ok || !payload.ok) {
+        const reason: string | undefined = payload?.reason
+        setError(reason && ERROR_MESSAGES[reason] ? ERROR_MESSAGES[reason] : "We couldn’t save your request. Please try again.")
+        return
       }
+
+      setIsSubmitted(true)
+      setEmailSent(!payload.alreadySubscribed)
+      setAlreadyOnList(Boolean(payload.alreadySubscribed))
     } catch (error) {
       console.error("Error submitting form:", error)
+      setError("We couldn’t save your request. Please try again.")
     } finally {
       setIsSending(false)
     }
@@ -59,9 +77,6 @@ export default function ShopTeaser() {
                 <p className="text-gray-600 dark:text-zinc-400 mb-6">Be the first to know when our collection drops.</p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <input type="hidden" name="form-name" value="shop-notification" />
-                  <input type="hidden" name="_subject" value="LATE Shop Notification Request" />
-
                   <div>
                     <Input
                       type="email"
@@ -73,6 +88,10 @@ export default function ShopTeaser() {
                       className="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-400"
                     />
                   </div>
+
+                  {error && (
+                    <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+                  )}
 
                   <Button
                     type="submit"
@@ -94,10 +113,14 @@ export default function ShopTeaser() {
                 <p className="text-gray-700 dark:text-zinc-300">
                   We'll notify you as soon as our collection is available.
                 </p>
-                {emailSent && (
-                  <p className="text-gray-500 dark:text-zinc-400 text-sm mt-2">
-                    A confirmation email has been sent to your inbox.
-                  </p>
+                {alreadyOnList ? (
+                  <p className="text-gray-500 dark:text-zinc-400 text-sm mt-2">You're already on our waitlist.</p>
+                ) : (
+                  emailSent && (
+                    <p className="text-gray-500 dark:text-zinc-400 text-sm mt-2">
+                      A confirmation email has been sent to your inbox.
+                    </p>
+                  )
                 )}
               </div>
             )}

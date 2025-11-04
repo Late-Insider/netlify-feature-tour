@@ -3,6 +3,7 @@
 import { sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
 import { createServiceRoleClient } from "@/lib/supabase"
 import { generateUnsubscribeUrl } from "@/lib/unsubscribe"
+import { SITE_URL } from "@/src/lib/site"
 
 interface EmailData {
   recipientEmail: string
@@ -144,7 +145,6 @@ export async function sendPendingEmails(): Promise<{
 }
 
 export async function sendWelcomeEmail(email: string, name?: string): Promise<boolean> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
   const unsubscribeUrl = await generateUnsubscribeUrl(email, "newsletter")
 
   const subject = `Welcome to Late - Own Your Time`
@@ -191,7 +191,7 @@ export async function sendWelcomeEmail(email: string, name?: string): Promise<bo
                 In the meantime, explore our latest articles and discover insights that can help you take control of your time.
               </p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${siteUrl}/#newsletter" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                <a href="${SITE_URL}/#newsletter" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
                   Read Latest Articles
                 </a>
               </div>
