@@ -482,14 +482,12 @@ export async function addCreatorApplication(input: CreatorAppInput) {
 
     // 2) (optional) also subscribe them to creator waitlist (single opt-in)
     // ignore duplicate errors (23505)
-    await client
-      .from("subscribers")
-      .insert({
-        email: input.email,
-        category: "auction_waitlist_creator",
-        status: "confirmed",
-        source: input.source ?? "auction_creator_modal",
-      })
+    await client.from("subscribers").insert({
+  email: input.email,
+  category: "auction_waitlist_creator",
+  status: "confirmed",
+  source: input.source ?? "auction_creator_modal",
+})
       .select("id")
       .single()
       .catch(() => null)
