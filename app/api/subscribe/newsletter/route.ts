@@ -1,9 +1,12 @@
-import { type NextRequest, NextResponse } from "next/server"
-
-import { addSubscriber } from "@/lib/supabase"
+import { NextRequest, NextResponse } from "next/server"
+import { addSubscriber, getSubscriberByEmail } from "@/lib/supabase"
 import { createEmailTemplate, sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Site URL for links in emails (fallback to production domain)
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") || "https://late.ltd"
 
 const REQUIRED_GRAPH_KEYS = [
   "MICROSOFT_TENANT_ID",
@@ -13,87 +16,89 @@ const REQUIRED_GRAPH_KEYS = [
 ]
 
 function hasGraphConfig(): boolean {
-  return REQUIRED_GRAPH_KEYS.every((key) => Boolean(process.env[key as keyof NodeJS.ProcessEnv]))
+  return REQUIRED_GRAPH_KEYS.every((k) => Boolean(process.env[k as keyof NodeJS.ProcessEnv]))
 }
 
-async function sendConfirmationEmail(email: string) {
-  if (!hasGraphConfig()) {
-    return { sent: false }
-  }
+// Send a welcome email (single opt-in) with a working unsubscribe link.
+async function sendWelcomeEmail(email: string, unsubscribeToken?: string | null) {
+  if (!hasGraphConfig()) return { sent: false }
 
-  try {
-    const html = await createEmailTemplate(
-      "Confirm your newsletter subscription",
-      `<p>Thanks for joining the Late newsletter. We'll send you stories once you confirm.</p>
-       <p>If you didn't request this, you can ignore this email.</p>`,
-    )
+  const unsubscribeUrl = unsubscribeToken
+    ? `${SITE_URL}/unsubscribe?t=${encodeURIComponent(unsubscribeToken)}`
+    : `${SITE_URL}`
 
-    const result = await sendMicrosoftGraphEmail({
-      to: email,
-      subject: "Please confirm your Late newsletter subscription",
-      body: html,
-    })
+  const html = await createEmailTemplate(
+    "Welcome to Late — Letters Worth Your Time",
+    `
+      <p>Scribbles inspired by Late Thoughts will reach your inbox weekly —
+      thoughtful, mind-provoking and soul-soothing. Welcome to the inner circle.</p>
 
-    if (!result.success) {
-      console.warn(
-        JSON.stringify({
-          level: "warn",
-          scope: "newsletter-confirmation",
-          error: result.error,
-        }),
-      )
-    }
+      <p style="margin-top:16px;">
+        If this wasn’t you, you can unsubscribe any time:
+        <br><a href="${unsubscribeUrl}">${unsubscribeUrl}</a>
+      </p>
+    `
+  )
 
-    return { sent: result.success }
-  } catch (error) {
+  const result = await sendMicrosoftGraphEmail({
+    to: email,
+    subject: "Welcome to Late",
+    body: html,
+  })
+
+  if (!result.success) {
     console.warn(
-      JSON.stringify({
-        level: "warn",
-        scope: "newsletter-confirmation",
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      JSON.stringify({ level: "warn", scope: "newsletter-welcome", error: result.error })
     )
-    return { sent: false }
   }
+  return { sent: result.success }
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null)
-
-  if (!body || typeof body.email !== "string") {
-    return NextResponse.json({ ok: false, reason: "Email is required" }, { status: 400 })
-  }
-
-  const email = body.email.trim().toLowerCase()
-  const source = typeof body.source === "string" ? body.source.trim() : null
-
-  if (!EMAIL_PATTERN.test(email)) {
-    return NextResponse.json({ ok: false, reason: "Please provide a valid email." }, { status: 422 })
-  }
-
-  const result = await addSubscriber({ email, category: "newsletter", source })
-
-  if (result.disabled) {
-    return NextResponse.json(
-      { ok: false, reason: "Subscriptions are temporarily unavailable." },
-      { status: 503 },
-    )
-  }
-
-  if (result.error && !result.isNew) {
-    const alreadyExists = result.error.toLowerCase().includes("already exists")
-    if (alreadyExists) {
-      await sendConfirmationEmail(email)
-      return NextResponse.json({ ok: true, alreadySubscribed: true })
+  try {
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body.email !== "string") {
+      return NextResponse.json({ ok: false, reason: "Email is required" }, { status: 400 })
     }
 
-    return NextResponse.json(
-      { ok: false, reason: result.error ?? "Unable to save subscription." },
-      { status: 400 },
-    )
+    const email = body.email.trim().toLowerCase()
+    if (!EMAIL_PATTERN.test(email)) {
+      return NextResponse.json({ ok: false, reason: "Please provide a valid email." }, { status: 422 })
+    }
+
+    // ✅ Single-opt-in: confirmed + active, and track origin
+    const result = await addSubscriber({
+      email,
+      category: "newsletter",
+      status: "confirmed",
+      source: "newsletter_form",
+    })
+
+    if (result.disabled) {
+      return NextResponse.json(
+        { ok: false, reason: "Subscriptions are temporarily unavailable." },
+        { status: 503 }
+      )
+    }
+
+    // If Supabase errored with something other than "already exists", bubble up
+    if (result.error && result.error !== "Subscriber already exists") {
+      return NextResponse.json(
+        { ok: false, reason: result.error ?? "Unable to save subscription." },
+        { status: 400 }
+      )
+    }
+
+    // Fetch the row to grab the unsubscribe token (backfilled/triggered in DB)
+    const sub = await getSubscriberByEmail(email)
+    const token = sub?.unsubscribe_token ?? null
+
+    // Send welcome email (instead of confirmation)
+    await sendWelcomeEmail(email, token)
+
+    return NextResponse.json({ ok: true, alreadySubscribed: !!result.error })
+  } catch (err) {
+    console.error("Newsletter subscribe failed:", err)
+    return NextResponse.json({ ok: false, reason: "internal_error" }, { status: 500 })
   }
-
-  await sendConfirmationEmail(email)
-
-  return NextResponse.json({ ok: true })
 }
