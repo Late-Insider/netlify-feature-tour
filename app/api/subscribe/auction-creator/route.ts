@@ -1,63 +1,123 @@
-import { NextResponse } from "next/server"
-import { addCreatorApplication, isSupabaseConfigured } from "@/lib/supabase"
+import { NextRequest, NextResponse } from "next/server"
+import { createServiceRoleClient, addSubscriber } from "@/lib/supabase"
+import { createEmailTemplate, sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
 
-const ALLOWED_TIMES = new Set([
-  "Morning (9AM - 12PM)",
-  "Afternoon (12PM - 5PM)",
-  "Evening (5PM - 8PM)",
-  "Weekends",
-])
+// simple guard
+function isEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
+}
 
-export async function POST(request: Request) {
+async function sendAdminNotice(app: {
+  name: string
+  email: string
+  preferredContactTimes: string[]
+  artworkDescription: string
+}) {
+  const tenant = process.env.MICROSOFT_TENANT_ID
+  const id = process.env.MICROSOFT_CLIENT_ID
+  const secret = process.env.MICROSOFT_CLIENT_SECRET
+  const from = process.env.MICROSOFT_SENDER_EMAIL
+  const adminTo = process.env.ADMIN_NOTIFICATION_EMAIL || from
+
+  if (!tenant || !id || !secret || !from || !adminTo) return
+
+  const html = await createEmailTemplate(
+    "New Creator Application",
+    `
+    <p><strong>Name:</strong> ${app.name}</p>
+    <p><strong>Email:</strong> ${app.email}</p>
+    <p><strong>Preferred times:</strong> ${app.preferredContactTimes.join(", ") || "—"}</p>
+    <p><strong>Description:</strong></p>
+    <p>${app.artworkDescription || "—"}</p>
+    `
+  )
+
+  await sendMicrosoftGraphEmail({
+    to: adminTo,
+    subject: "Creator Application — Late",
+    body: html,
+  })
+}
+
+async function sendApplicantThanks(email: string) {
+  const tenant = process.env.MICROSOFT_TENANT_ID
+  const id = process.env.MICROSOFT_CLIENT_ID
+  const secret = process.env.MICROSOFT_CLIENT_SECRET
+  const from = process.env.MICROSOFT_SENDER_EMAIL
+  if (!tenant || !id || !secret || !from) return
+
+  const html = await createEmailTemplate(
+    "Thanks for your creator application",
+    `
+    <p>Thanks for your interest in joining LATE’s auction. We’ll review your application and get back to you.</p>
+    `
+  )
+
+  await sendMicrosoftGraphEmail({
+    to: email,
+    subject: "We received your creator application",
+    body: html,
+  })
+}
+
+export async function POST(req: NextRequest) {
   try {
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json(
-        { error: "Database is not configured. Please contact support." },
-        { status: 503 },
-      )
+    const body = await req.json().catch(() => null)
+    if (!body) return NextResponse.json({ success: false, error: "Invalid payload" }, { status: 400 })
+
+    const name = String(body.name || "").trim()
+    const email = String(body.email || "").trim().toLowerCase()
+    const times = Array.isArray(body.preferredContactTimes) ? body.preferredContactTimes.map(String) : []
+    const message = String(body.message || "").trim()
+    const source = String(body.source || "auction_creator_modal")
+
+    if (!name || !isEmail(email) || !message) {
+      return NextResponse.json({ success: false, error: "Missing name, valid email, or description" }, { status: 422 })
     }
 
-    const body = await request.json().catch(() => ({} as any))
-    const email: string = (body.email ?? "").trim()
-    const name: string = (body.name ?? "").trim()
-    const message: string | null = typeof body.message === "string" ? body.message.trim() : null
-    const source: string = (body.source ?? "auction_creator_modal").trim()
-
-    // MUST be an array of strings; keep only allowed values
-    const preferredContactTimesRaw: unknown = body.preferredContactTimes
-    const preferredContactTimes: string[] = Array.isArray(preferredContactTimesRaw)
-      ? preferredContactTimesRaw.map(String).filter((v) => ALLOWED_TIMES.has(v))
-      : []
-
-    if (!email || !email.includes("@")) {
-      return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
-    }
-    if (!name) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 })
+    const client = createServiceRoleClient()
+    if (!client) {
+      return NextResponse.json({ success: false, error: "Database unavailable" }, { status: 503 })
     }
 
-    const record = await addCreatorApplication({
-      name,
+    // 1) Save the full application
+    const { data: appRow, error: appErr } = await client
+      .from("creator_applications")
+      .insert({
+        name,
+        email,
+        preferred_contact_times: times, // TEXT[]
+        artwork_description: message,
+        status: "pending",
+        source,
+        submitted_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single()
+
+    if (appErr) {
+      console.error("Creator app insert error:", appErr)
+      return NextResponse.json({ success: false, error: "Applications are temporarily unavailable." }, { status: 503 })
+    }
+
+    // 2) Also add them to subscribers (category you prefer in the dashboard)
+    //    If you want a different label, adjust here.
+    await addSubscriber({
       email,
-      preferredContactTimes,        // ✅ value, not a type
-      artworkDescription: message,  // ✅ map message → artwork_description
+      category: "auction-creator",
+      status: "pending",
       source,
     })
 
-    if (!record) {
-      return NextResponse.json(
-        { error: "Applications are temporarily unavailable. Please try again soon." },
-        { status: 503 },
-      )
-    }
+    // 3) Emails (best-effort; API still returns success)
+    await Promise.all([
+      sendApplicantThanks(email),
+      sendAdminNotice({ name, email, preferredContactTimes: times, artworkDescription: message }),
+    ]).catch(() => null)
 
-    return NextResponse.json({
-      success: true,
-      message: "Application submitted! We will review and get back to you soon.",
-      data: record,
-    })
-  } catch (error) {
-    console.error("Creator application error:", error)
-    return NextResponse.json({ error: "Failed to submit application. Please try again." }, { status: 500 })
+    return NextResponse.json({ success: true, id: appRow?.id ?? null })
+  } catch (e) {
+    console.error("Creator API error:", e)
+    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 })
   }
 }
