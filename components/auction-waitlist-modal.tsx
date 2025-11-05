@@ -56,42 +56,39 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault()
+  setError("")
+  setSuccess(false)
+  setIsLoading(true)
 
-    try {
-      const formData = new FormData()
+  const fd = new FormData(e.currentTarget)
+  const preferredContactTimes = fd.getAll("preferredContactTimes").map(String)
 
-      if (userType === "collector") {
-        formData.set("name", collectorForm.name)
-        formData.set("email", collectorForm.email)
-        formData.set("timeSlots", collectorForm.timeSlots.join(", "))
-        formData.set("form-name", "auction-collector-waitlist")
-        formData.set("_subject", "LATE Auction - Collector Waitlist Application")
-      } else if (userType === "creator") {
-        formData.set("name", creatorForm.name)
-        formData.set("email", creatorForm.email)
-        formData.set("timeSlots", creatorForm.timeSlots.join(", "))
-        formData.set("artworkDescription", creatorForm.artworkDescription)
-        formData.set("form-name", "auction-creator-application")
-        formData.set("_subject", "LATE Auction - Creator Application Submission")
-      }
+  try {
+    const res = await fetch("/api/subscribe/auction-creator", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: fd.get("name"),
+        email: fd.get("email"),
+        preferredContactTimes, // ✅ ARRAY from checkboxes
+        message: fd.get("message"),
+        source: "auction_creator_modal",
+      }),
+    })
 
-      const result = await handleFormSubmission(formData)
+    const result = await res.json()
+    if (!res.ok) throw new Error(result.error || "Submission failed")
 
-      if (result.success) {
-        setIsSubmitted(true)
-        setEmailSent(result.emailSent || false)
-      } else {
-        console.error("Form submission failed:", result.message)
-      }
-    } catch (error) {
-      console.error("Error submitting form:", error)
-    } finally {
-      setIsSubmitting(false)
-    }
+    setSuccess(true)
+    e.currentTarget.reset()
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Something went wrong")
+  } finally {
+    setIsLoading(false)
   }
+}
 
   const resetModal = () => {
     setUserType(null)
