@@ -413,30 +413,97 @@ export async function getDashboardStats() {
   const client = getServiceClient()
   if (!client) {
     return {
-      totalSubscribers: 0,
-      totalComments: 0,
-      totalEmails: 0,
+      totals: {
+        totalActiveSubscribers: 0,
+        totalCreatorApplications: 0,
+        totalContactSubmissions: 0,
+        totalQueuedEmails: 0,
+        totalSentEmails: 0,
+      },
+      subscribersByCategory: [] as Array<{ category: string | null; count: number }>,
     }
   }
 
   try {
-    const [subscribersResult, commentsResult, emailsResult] = await Promise.all([
-      client.from("subscribers").select("count", { count: "exact", head: true }),
-      client.from("comments").select("count", { count: "exact", head: true }),
-      client.from("email_queue").select("count", { count: "exact", head: true }),
+    // 1) Active subscribers total
+    const subTotalPromise = client
+      .from("subscribers")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true)
+
+    // 2) Subscribers grouped by category (active only)
+    // PostgREST group-by: select=category,count:id&group=category
+    const subByCategoryPromise = client
+      .from("subscribers")
+      .select("category, count:id")
+      .eq("is_active", true)
+      .group("category")
+
+    // 3) Creator applications
+    const creatorAppsPromise = client
+      .from("creator_applications")
+      .select("*", { count: "exact", head: true })
+
+    // 4) Contact submissions
+    const contactSubsPromise = client
+      .from("contact_submissions")
+      .select("*", { count: "exact", head: true })
+
+    // 5) Email queue (optional if you use this table)
+    const queuedEmailsPromise = client
+      .from("email_queue")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending")
+
+    const sentEmailsPromise = client
+      .from("email_queue")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "sent")
+
+    const [
+      subTotalRes,
+      subByCategoryRes,
+      creatorAppsRes,
+      contactSubsRes,
+      queuedEmailsRes,
+      sentEmailsRes,
+    ] = await Promise.all([
+      subTotalPromise,
+      subByCategoryPromise,
+      creatorAppsPromise,
+      contactSubsPromise,
+      queuedEmailsPromise,
+      sentEmailsPromise,
     ])
 
+    // Safely map grouped results
+    const subscribersByCategory =
+      (subByCategoryRes.data as Array<{ category: string | null; count: number }>)?.map((row) => ({
+        category: row.category,
+        count: Number(row.count) || 0,
+      })) ?? []
+
     return {
-      totalSubscribers: subscribersResult.count ?? 0,
-      totalComments: commentsResult.count ?? 0,
-      totalEmails: emailsResult.count ?? 0,
+      totals: {
+        totalActiveSubscribers: subTotalRes.count ?? 0,
+        totalCreatorApplications: creatorAppsRes.count ?? 0,
+        totalContactSubmissions: contactSubsRes.count ?? 0,
+        totalQueuedEmails: queuedEmailsRes.count ?? 0,
+        totalSentEmails: sentEmailsRes.count ?? 0,
+      },
+      subscribersByCategory,
     }
   } catch (error) {
     console.error("Error fetching dashboard stats:", error)
     return {
-      totalSubscribers: 0,
-      totalComments: 0,
-      totalEmails: 0,
+      totals: {
+        totalActiveSubscribers: 0,
+        totalCreatorApplications: 0,
+        totalContactSubmissions: 0,
+        totalQueuedEmails: 0,
+        totalSentEmails: 0,
+      },
+      subscribersByCategory: [] as Array<{ category: string | null; count: number }>,
     }
   }
 }
@@ -457,44 +524,39 @@ type CreatorAppInput = {
  *   - creator_applications.source (text, optional)
  * And table: subscribers(email, category, status, source)
  */
-export async function addCreatorApplication(input: CreatorAppInput) {
+export async function addCreatorApplication(input: {
+  name: string
+  email: string
+  preferredContactTimes: string[] // TEXT[] column
+  artworkDescription: string       // artwork_description TEXT
+  source?: string | null           // source TEXT, nullable
+}) {
   const client = getServiceClient()
   if (!client) return null
 
   try {
-    // 1) Insert full application
-    const { data: appData, error: appErr } = await client
+    const { data, error } = await client
       .from("creator_applications")
       .insert({
         name: input.name,
         email: input.email,
-        preferred_contact_times: input.preferredContactTimes, // ← ARRAY column
-        artwork_description: input.artworkDescription,
-        source: input.source ?? "auction_creator_modal",
+        preferred_contact_times: input.preferredContactTimes, // ✅ TEXT[]
+        artwork_description: input.artworkDescription,        // ✅ renamed column
+        source: input.source ?? null,                         // ✅ now exists
+        status: "pending",
+        submitted_at: new Date().toISOString(),
       })
-      .select("id")
+      .select()
       .single()
 
-    if (appErr) {
-      console.error("Error adding creator application:", appErr)
+    if (error) {
+      console.error("Error adding creator application:", error)
       return null
     }
 
-    // 2) (optional) also subscribe them to creator waitlist (single opt-in)
-    // ignore duplicate errors (23505)
-    await client.from("subscribers").insert({
-  email: input.email,
-  category: "auction_waitlist_creator",
-  status: "confirmed",
-  source: input.source ?? "auction_creator_modal",
-})
-      .select("id")
-      .single()
-      .catch(() => null)
-
-    return appData
+    return data
   } catch (error) {
-    console.error("addCreatorApplication error:", error)
+    console.error("Error adding creator application:", error)
     return null
   }
 }
