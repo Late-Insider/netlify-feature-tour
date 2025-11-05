@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { addCreatorApplication, isSupabaseConfigured } from "@/lib/supabase"
 
 const ALLOWED_TIMES = new Set([
@@ -8,7 +8,7 @@ const ALLOWED_TIMES = new Set([
   "Weekends",
 ])
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     if (!isSupabaseConfigured()) {
       return NextResponse.json(
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     const record = await addCreatorApplication({
       name,
       email,
-     preferredContactTimes: string[]   // array of the labels
-     message: string                   // mapped to artwork_description
+      preferredContactTimes,        // ✅ value, not a type
+      artworkDescription: message,  // ✅ map message → artwork_description
       source,
     })
 
