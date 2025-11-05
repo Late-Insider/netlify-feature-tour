@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,26 +28,26 @@ export default function NewsletterSubscribeForm() {
 
       const response = await fetch("/api/subscribe/newsletter", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          source: "newsletter_form",
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, source: "newsletter_form" }),
       })
 
-      const payload = await response.json().catch(() => ({ ok: false, reason: "Unknown error" }))
+      // ✅ match backend { success: true } shape
+      const payload = await response.json().catch(() => ({} as any))
 
-      if (!response.ok || !payload.ok) {
-        setError(payload.reason || "Something went wrong. Please try again.")
+      if (!response.ok || payload?.success !== true) {
+        setError(payload?.error || "Subscription failed. Please try again.")
         return
       }
 
+      // ✅ brief success message (like podcast)
       e.currentTarget.reset()
-      setSuccessMessage("Check your inbox to confirm your subscription.")
-      setTimeout(() => setSuccessMessage(""), 5000)
+      setSuccessMessage("Thank you for subscribing! We just sent you an email confirmation.")
+
+      // auto-hide after 7 seconds (optional)
+      setTimeout(() => setSuccessMessage(""), 7000)
     } catch (err) {
+      console.error(err)
       setError("Failed to subscribe. Please try again later.")
     } finally {
       setIsLoading(false)
