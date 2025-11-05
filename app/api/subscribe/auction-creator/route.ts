@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const message: string | null = typeof body.message === "string" ? body.message.trim() : null
     const source: string = (body.source ?? "auction_creator_modal").trim()
 
-    // MUST be an array; keep only allowed values
+    // MUST be an array of strings; keep only allowed values
     const preferredContactTimesRaw: unknown = body.preferredContactTimes
     const preferredContactTimes: string[] = Array.isArray(preferredContactTimesRaw)
       ? preferredContactTimesRaw.map(String).filter((v) => ALLOWED_TIMES.has(v))
@@ -36,12 +36,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 })
     }
 
-    // portfolio_url is deprecated/removed
     const record = await addCreatorApplication({
       name,
       email,
       preferredContactTimes,
-      artworkDescription: message,
+      artworkDescription: message, // ← map your "message" field
       source,
     })
 
