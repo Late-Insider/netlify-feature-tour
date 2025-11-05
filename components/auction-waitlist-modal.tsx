@@ -65,83 +65,88 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
   }
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault()
-    setError("")
-    setIsSubmitting(true)
-    setEmailSent(false)
+  e.preventDefault()
+  setError("")
+  setIsSubmitting(true)
+  setIsSubmitted(false)
+  setEmailSent(false)
 
-    try {
-      if (!userType) {
-        setError("Please choose Collector or Creator")
+  try {
+    if (!userType) {
+      setError("Please choose Collector or Creator")
+      return
+    }
+
+    if (userType === "collector") {
+      const { name, email, timeSlots } = collectorForm
+      if (!name.trim() || !email.trim()) {
+        setError("Please enter your name and a valid email.")
         return
       }
 
-      if (userType === "collector") {
-        const { name, email, timeSlots } = collectorForm
-        if (!name.trim() || !email.trim()) {
-          setError("Please enter your name and a valid email.")
-          return
-        }
+      // If you want to store the readable labels, keep this line.
+      // If you prefer the raw values ("morning" | "afternoon" | ...),
+      // send `timeSlots` directly instead of mapping.
+      const preferredContactTimes = timeSlots.map((t) => timeSlotLabels[t])
 
-        // Map enum to human-readable labels for the API
-        const preferredContactTimes = timeSlots.map((t) => timeSlotLabels[t])
+      const res = await fetch("/api/subscribe/auction-collector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          preferredContactTimes,
+          source: "auction_collector_modal",
+        }),
+      })
 
-        const res = await fetch("/api/subscribe/auction-collector", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: name.trim(),
-            email: email.trim(),
-            preferredContactTimes,
-            source: "auction_collector_modal",
-          }),
-        })
-
-        const payload = await res.json().catch(() => ({}))
-        if (!res.ok || payload?.ok === false || payload?.error) {
-          throw new Error(payload?.error || "Submission failed")
-        }
-
-        setIsSubmitted(true)
-        setEmailSent(true)
-        // reset only after success so we keep entered values if there was an error
-        setCollectorForm({ name: "", email: "", timeSlots: [] })
-      } else {
-        const { name, email, timeSlots, artworkDescription } = creatorForm
-        if (!name.trim() || !email.trim() || !artworkDescription.trim()) {
-          setError("Please fill out your name, email, and a brief description of your artwork.")
-          return
-        }
-
-        const preferredContactTimes = timeSlots.map((t) => timeSlotLabels[t])
-
-        const res = await fetch("/api/subscribe/auction-creator", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: name.trim(),
-            email: email.trim(),
-            preferredContactTimes,              // ✅ array of labels
-            message: artworkDescription.trim(), // mapped to artwork_description on the server
-            source: "auction_creator_modal",
-          }),
-        })
-
-        const payload = await res.json().catch(() => ({}))
-        if (!res.ok || payload?.ok === false || payload?.error) {
-          throw new Error(payload?.error || "Submission failed")
-        }
-
-        setIsSubmitted(true)
-        setEmailSent(true)
-        setCreatorForm({ name: "", email: "", timeSlots: [], artworkDescription: "" })
+      const payload = await res.json().catch(() => ({}))
+      // ✅ our route should respond with { success: true }
+      if (!res.ok || payload?.success !== true) {
+        throw new Error(payload?.error || "Submission failed")
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
-    } finally {
-      setIsSubmitting(false)
+
+      setIsSubmitted(true)
+      setEmailSent(true)
+      setCollectorForm({ name: "", email: "", timeSlots: [] })
+    } else {
+      const { name, email, timeSlots, artworkDescription } = creatorForm
+      if (!name.trim() || !email.trim() || !artworkDescription.trim()) {
+        setError("Please fill out your name, email, and a brief description of your artwork.")
+        return
+      }
+
+      // Same note as above about labels vs raw codes.
+      const preferredContactTimes = timeSlots.map((t) => timeSlotLabels[t])
+
+      const res = await fetch("/api/subscribe/auction-creator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          preferredContactTimes,              // array of strings
+          message: artworkDescription.trim(), // mapped to artwork_description on the server
+          source: "auction_creator_modal",
+        }),
+      })
+
+      const payload = await res.json().catch(() => ({}))
+      // ✅ check for `success`
+      if (!res.ok || payload?.success !== true) {
+        throw new Error(payload?.error || "Submission failed")
+      }
+
+      setIsSubmitted(true)
+      setEmailSent(true)
+      setCreatorForm({ name: "", email: "", timeSlots: [], artworkDescription: "" })
     }
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Something went wrong")
+  } finally {
+    setIsSubmitting(false)
   }
+}
 
   const resetModal = () => {
     setUserType(null)
