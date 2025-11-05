@@ -2,11 +2,9 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - "*"
+    branches: [ "*" ]
 
 jobs:
   lint-and-test:
@@ -20,10 +18,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Make npm more resilient to flaky registry/network
+      - name: Configure npm
+        run: |
+          npm config set registry https://registry.npmjs.org
+          npm config set fetch-retry-maxtimeout 600000
+          npm config set fetch-timeout 600000
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --prefer-online
 
       - name: Lint
         run: npm run lint
