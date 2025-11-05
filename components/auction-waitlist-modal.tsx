@@ -6,7 +6,6 @@ import { X, Users, Palette, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { handleFormSubmission } from "@/actions/email-actions"
 
 interface AuctionWaitlistModalProps {
   isOpen: boolean
@@ -21,6 +20,7 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+  const [error, setError] = useState<string>("")
 
   const [collectorForm, setCollectorForm] = useState({
     name: "",
@@ -35,11 +35,19 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
     artworkDescription: "",
   })
 
+  // Labels that must match what the API/DB expects (array<string>)
+  const timeSlotLabels: Record<TimeSlot, string> = {
+    morning: "Morning (9AM - 12PM)",
+    afternoon: "Afternoon (12PM - 5PM)",
+    evening: "Evening (5PM - 8PM)",
+    weekend: "Weekends",
+  }
+
   const timeSlotOptions: { value: TimeSlot; label: string }[] = [
-    { value: "morning", label: "Morning (9AM - 12PM)" },
-    { value: "afternoon", label: "Afternoon (12PM - 5PM)" },
-    { value: "evening", label: "Evening (5PM - 8PM)" },
-    { value: "weekend", label: "Weekends" },
+    { value: "morning", label: timeSlotLabels.morning },
+    { value: "afternoon", label: timeSlotLabels.afternoon },
+    { value: "evening", label: timeSlotLabels.evening },
+    { value: "weekend", label: timeSlotLabels.weekend },
   ]
 
   const handleTimeSlotChange = (slot: TimeSlot, type: "collector" | "creator") => {
@@ -56,44 +64,90 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
     }
   }
 
- const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault()
-  setError("")
-  setSuccess(false)
-  setIsLoading(true)
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault()
+    setError("")
+    setIsSubmitting(true)
+    setEmailSent(false)
 
-  const fd = new FormData(e.currentTarget)
-  const preferredContactTimes = fd.getAll("preferredContactTimes").map(String)
+    try {
+      if (!userType) {
+        setError("Please choose Collector or Creator")
+        return
+      }
 
-  try {
-    const res = await fetch("/api/subscribe/auction-creator", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: fd.get("name"),
-        email: fd.get("email"),
-        preferredContactTimes, // ✅ ARRAY from checkboxes
-        message: fd.get("message"),
-        source: "auction_creator_modal",
-      }),
-    })
+      if (userType === "collector") {
+        const { name, email, timeSlots } = collectorForm
+        if (!name.trim() || !email.trim()) {
+          setError("Please enter your name and a valid email.")
+          return
+        }
 
-    const result = await res.json()
-    if (!res.ok) throw new Error(result.error || "Submission failed")
+        // Map enum to human-readable labels for the API
+        const preferredContactTimes = timeSlots.map((t) => timeSlotLabels[t])
 
-    setSuccess(true)
-    e.currentTarget.reset()
-  } catch (err) {
-    setError(err instanceof Error ? err.message : "Something went wrong")
-  } finally {
-    setIsLoading(false)
+        const res = await fetch("/api/subscribe/auction-collector", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            preferredContactTimes,
+            source: "auction_collector_modal",
+          }),
+        })
+
+        const payload = await res.json().catch(() => ({}))
+        if (!res.ok || payload?.ok === false || payload?.error) {
+          throw new Error(payload?.error || "Submission failed")
+        }
+
+        setIsSubmitted(true)
+        setEmailSent(true)
+        // reset only after success so we keep entered values if there was an error
+        setCollectorForm({ name: "", email: "", timeSlots: [] })
+      } else {
+        const { name, email, timeSlots, artworkDescription } = creatorForm
+        if (!name.trim() || !email.trim() || !artworkDescription.trim()) {
+          setError("Please fill out your name, email, and a brief description of your artwork.")
+          return
+        }
+
+        const preferredContactTimes = timeSlots.map((t) => timeSlotLabels[t])
+
+        const res = await fetch("/api/subscribe/auction-creator", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            preferredContactTimes,              // ✅ array of labels
+            message: artworkDescription.trim(), // mapped to artwork_description on the server
+            source: "auction_creator_modal",
+          }),
+        })
+
+        const payload = await res.json().catch(() => ({}))
+        if (!res.ok || payload?.ok === false || payload?.error) {
+          throw new Error(payload?.error || "Submission failed")
+        }
+
+        setIsSubmitted(true)
+        setEmailSent(true)
+        setCreatorForm({ name: "", email: "", timeSlots: [], artworkDescription: "" })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
-}
 
   const resetModal = () => {
     setUserType(null)
     setIsSubmitted(false)
     setEmailSent(false)
+    setError("")
     setCollectorForm({ name: "", email: "", timeSlots: [] })
     setCreatorForm({ name: "", email: "", timeSlots: [], artworkDescription: "" })
     onClose()
@@ -133,9 +187,7 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
                   </div>
                   <div className="text-left">
                     <h3 className="font-bold text-gray-900 dark:text-white">As a Collector</h3>
-                    <p className="text-sm text-gray-600 dark:text-zinc-400">
-                      Get early access to limited-edition items
-                    </p>
+                    <p className="text-sm text-gray-600 dark:text-zinc-400">Get early access to limited-edition items</p>
                   </div>
                 </div>
               </button>
@@ -159,6 +211,12 @@ export default function AuctionWaitlistModal({ isOpen, onClose }: AuctionWaitlis
 
           {userType && !isSubmitted && (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                  {error}
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Full Name</label>
                 <Input
