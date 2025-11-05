@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     const record = await addCreatorApplication({
       name,
       email,
-      preferredContactTimes,
-      artworkDescription: message, // ← map your "message" field
+     preferredContactTimes: string[]   // array of the labels
+     message: string                   // mapped to artwork_description
       source,
     })
 
