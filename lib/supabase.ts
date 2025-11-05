@@ -441,39 +441,62 @@ export async function getDashboardStats() {
   }
 }
 
-export async function addCreatorApplication(
-  name: string,
-  email: string,
-  portfolioUrl: string | undefined,
-  message: string,
-) {
+type CreatorAppInput = {
+  name: string
+  email: string
+  preferredContactTimes: string[]            // ← multi-select from the form
+  artworkDescription: string | null          // ← your free-text message
+  source?: string
+}
+
+/**
+ * Insert a creator application + (optionally) auto-subscribe to the creator waitlist.
+ * Expects DB columns:
+ *   - creator_applications.preferred_contact_times (text[])
+ *   - creator_applications.artwork_description (text)
+ *   - creator_applications.source (text, optional)
+ * And table: subscribers(email, category, status, source)
+ */
+export async function addCreatorApplication(input: CreatorAppInput) {
   const client = getServiceClient()
-  if (!client) {
-    return null
-  }
+  if (!client) return null
 
   try {
-    const { data, error } = await client
+    // 1) Insert full application
+    const { data: appData, error: appErr } = await client
       .from("creator_applications")
       .insert({
-        name,
-        email,
-        portfolio_url: portfolioUrl ?? null,
-        message,
-        status: "pending",
-        submitted_at: new Date().toISOString(),
+        name: input.name,
+        email: input.email,
+        preferred_contact_times: input.preferredContactTimes, // ← ARRAY column
+        artwork_description: input.artworkDescription,
+        source: input.source ?? "auction_creator_modal",
       })
-      .select()
+      .select("id")
       .single()
 
-    if (error) {
-      console.error("Error adding creator application:", error)
+    if (appErr) {
+      console.error("Error adding creator application:", appErr)
       return null
     }
 
-    return data
+    // 2) (optional) also subscribe them to creator waitlist (single opt-in)
+    // ignore duplicate errors (23505)
+    await client
+      .from("subscribers")
+      .insert({
+        email: input.email,
+        category: "auction_waitlist_creator",
+        status: "confirmed",
+        source: input.source ?? "auction_creator_modal",
+      })
+      .select("id")
+      .single()
+      .catch(() => null)
+
+    return appData
   } catch (error) {
-    console.error("Error adding creator application:", error)
+    console.error("addCreatorApplication error:", error)
     return null
   }
 }
