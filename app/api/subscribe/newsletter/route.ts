@@ -1,90 +1,81 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { addSubscriber } from "@/lib/supabase"
+import { addSubscriber, createServiceRoleClient } from "@/lib/supabase"
 import { createEmailTemplate, sendMicrosoftGraphEmail } from "@/lib/microsoft-graph"
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://late.ltd"
 
-function hasGraph() {
-  const req = ["MICROSOFT_TENANT_ID", "MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET", "MICROSOFT_SENDER_EMAIL"]
-  return req.every((k) => !!process.env[k as keyof NodeJS.ProcessEnv])
+function graphReady() {
+  return ["MICROSOFT_TENANT_ID","MICROSOFT_CLIENT_ID","MICROSOFT_CLIENT_SECRET","MICROSOFT_SENDER_EMAIL"]
+    .every(k => !!process.env[k as keyof NodeJS.ProcessEnv])
 }
 
-async function notifyAdmin(email: string) {
+async function sendAdmin(email: string) {
+  if (!graphReady()) return
   const to = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.MICROSOFT_SENDER_EMAIL
-  if (!hasGraph() || !to) return
-  const html = await createEmailTemplate(
-    "New Newsletter Subscription",
-    `<p>${email} just subscribed to the LATE newsletter.</p>`
-  )
-  await sendMicrosoftGraphEmail({ to, subject: "Newsletter subscription", body: html })
+  if (!to) return
+  const html = await createEmailTemplate("New Newsletter Subscription", `<p>${email} just subscribed.</p>`)
+  await sendMicrosoftGraphEmail({ to, subject: "Newsletter subscription", body: html }).catch(() => null)
 }
 
-async function sendConfirm(email: string, unsubscribeToken?: string) {
-  if (!hasGraph()) return
-
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://late.ltd"
-  const unsubscribeUrl = `${baseUrl}/unsubscribe?token=${encodeURIComponent(unsubscribeToken || "")}`
-
+async function sendWelcome(email: string, token: string) {
+  if (!graphReady()) return
+  const unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${encodeURIComponent(token)}`
   const html = await createEmailTemplate(
     "Welcome to the Inner Circle",
     `
-      <p>Thank you for subscribing to the <strong>LATE newsletter</strong>.</p>
+      <p>Thank you for subscribing to the LATE newsletter.</p>
       <p>You're now signed up to receive thought-provoking, soul-soothing essays weekly, directly in your inbox.</p>
-      <p>If you ever change your mind, you can
-        <a href="${unsubscribeUrl}" target="_blank" style="color:#7C3AED;text-decoration:underline;">unsubscribe here</a>.
+      <p style="margin-top:16px">
+        If you ever wish to unsubscribe, you can do so
+        <a href="${unsubscribeUrl}">here</a>.
       </p>
-      <br/>
-      <p>Stay Late.<br/>The best things are always worth the wait 😉</p>
+      <p style="margin-top:24px">Stay Late.<br/>The best things are always worth the wait 😉</p>
       <p>– The LATE Team</p>
     `
   )
-
-  await sendMicrosoftGraphEmail({
-    to: email,
-    subject: "Welcome to the Inner Circle",
-    body: html,
-  })
+  await sendMicrosoftGraphEmail({ to: email, subject: "You’re in — LATE Letters", body: html }).catch(() => null)
 }
 
-export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null)
-  if (!body || typeof body.email !== "string") {
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null)
+  if (!body?.email || typeof body.email !== "string") {
     return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 })
   }
 
   const email = body.email.trim().toLowerCase()
-  const source = typeof body.source === "string" ? body.source.trim() : "newsletter_form"
-
-  if (!EMAIL_PATTERN.test(email)) {
+  if (!EMAIL.test(email)) {
     return NextResponse.json({ success: false, error: "Please provide a valid email." }, { status: 422 })
   }
 
-  // Save (or detect existing) subscriber
-  const result = await addSubscriber({
+  const source = typeof body.source === "string" ? body.source.trim() : "newsletter_form"
+
+  // ensure a token on the row
+  const client = createServiceRoleClient()
+  const unsubscribe_token = crypto.randomUUID()
+
+  // Insert (or detect duplicate) using your helper
+  const res = await addSubscriber({
     email,
     category: "newsletter",
     status: "pending",
     source,
   })
 
-  if (result.disabled) {
-    return NextResponse.json(
-      { success: false, error: "Subscriptions are temporarily unavailable." },
-      { status: 503 }
-    )
+  // If we just created it (or even if duplicate), make sure the token exists
+  if (client) {
+    await client
+      .from("subscribers")
+      .update({ unsubscribe_token })
+      .eq("email", email)
+      .eq("category", "newsletter")
   }
 
-  // Pull unsubscribe token if present so the email link works
-  const token =
-    (result?.data as { unsubscribe_token?: string } | null)?.unsubscribe_token ?? undefined
+  // Send emails (welcome + admin). Even for duplicates we succeed.
+  await Promise.all([sendWelcome(email, unsubscribe_token), sendAdmin(email)])
 
-  if (result.error && !result.isNew) {
-    // Already exists → still send welcome + notify admin, but don’t error
-    await Promise.all([sendConfirm(email, token), notifyAdmin(email)]).catch(() => null)
-    return NextResponse.json({ success: true, already: true })
-  }
-
-  // New subscriber → send email + notify admin
-  await Promise.all([sendConfirm(email, token), notifyAdmin(email)]).catch(() => null)
-  return NextResponse.json({ success: true })
+  return NextResponse.json({
+    success: true,
+    message: "Thanks for subscribing! We just sent you a confirmation email.",
+  })
 }
