@@ -12,17 +12,38 @@ function hasGraph() {
 async function notifyAdmin(email: string) {
   const to = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.MICROSOFT_SENDER_EMAIL
   if (!hasGraph() || !to) return
-  const html = await createEmailTemplate("New Newsletter Subscription", `<p>${email} just subscribed.</p>`)
+  const html = await createEmailTemplate(
+    "New Newsletter Subscription",
+    `<p>${email} just subscribed to the LATE newsletter.</p>`
+  )
   await sendMicrosoftGraphEmail({ to, subject: "Newsletter subscription", body: html })
 }
 
-async function sendConfirm(email: string) {
+async function sendConfirm(email: string, unsubscribeToken?: string) {
   if (!hasGraph()) return
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://late.ltd"
+  const unsubscribeUrl = `${baseUrl}/unsubscribe?token=${encodeURIComponent(unsubscribeToken || "")}`
+
   const html = await createEmailTemplate(
-    "Welcome to LATE Letters",
-    `<p>Thanks for subscribing. Scribbles inspired by Late Thoughts will reach you weekly. Welcome to the inner circle!</p>`
+    "Welcome to the Inner Circle",
+    `
+      <p>Thank you for subscribing to the <strong>LATE newsletter</strong>.</p>
+      <p>You're now signed up to receive thought-provoking, soul-soothing essays weekly, directly in your inbox.</p>
+      <p>If you ever change your mind, you can
+        <a href="${unsubscribeUrl}" target="_blank" style="color:#7C3AED;text-decoration:underline;">unsubscribe here</a>.
+      </p>
+      <br/>
+      <p>Stay Late.<br/>The best things are always worth the wait 😉</p>
+      <p>– The LATE Team</p>
+    `
   )
-  await sendMicrosoftGraphEmail({ to: email, subject: "You’re in — LATE Letters", body: html })
+
+  await sendMicrosoftGraphEmail({
+    to: email,
+    subject: "Welcome to the Inner Circle",
+    body: html,
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -33,23 +54,37 @@ export async function POST(request: NextRequest) {
 
   const email = body.email.trim().toLowerCase()
   const source = typeof body.source === "string" ? body.source.trim() : "newsletter_form"
+
   if (!EMAIL_PATTERN.test(email)) {
     return NextResponse.json({ success: false, error: "Please provide a valid email." }, { status: 422 })
   }
 
-  const result = await addSubscriber({ email, category: "newsletter", status: "pending", source })
+  // Save (or detect existing) subscriber
+  const result = await addSubscriber({
+    email,
+    category: "newsletter",
+    status: "pending",
+    source,
+  })
 
   if (result.disabled) {
-    return NextResponse.json({ success: false, error: "Subscriptions are temporarily unavailable." }, { status: 503 })
+    return NextResponse.json(
+      { success: false, error: "Subscriptions are temporarily unavailable." },
+      { status: 503 }
+    )
   }
 
+  // Pull unsubscribe token if present so the email link works
+  const token =
+    (result?.data as { unsubscribe_token?: string } | null)?.unsubscribe_token ?? undefined
+
   if (result.error && !result.isNew) {
-    // Already exists → still send emails and return success
-    await Promise.all([sendConfirm(email), notifyAdmin(email)]).catch(() => null)
+    // Already exists → still send welcome + notify admin, but don’t error
+    await Promise.all([sendConfirm(email, token), notifyAdmin(email)]).catch(() => null)
     return NextResponse.json({ success: true, already: true })
   }
 
-  // New subscriber → send emails
-  await Promise.all([sendConfirm(email), notifyAdmin(email)]).catch(() => null)
+  // New subscriber → send email + notify admin
+  await Promise.all([sendConfirm(email, token), notifyAdmin(email)]).catch(() => null)
   return NextResponse.json({ success: true })
 }
