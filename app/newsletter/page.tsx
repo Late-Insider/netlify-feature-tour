@@ -4,13 +4,31 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import NewsletterSubscribeForm from "@/components/newsletter-subscribe-form"
 
+// 🔧 Force runtime rendering to avoid SSG/serialization issues
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+export const fetchCache = "force-no-store"
+
 export const metadata: Metadata = {
   title: "Newsletter - LATE",
   description: "Weekly insights on productivity, time management, and intentional living from LATE.",
 }
 
 export default function NewsletterPage() {
-  const articles = getAllNewsletterArticles()
+  // Guard so a serialization hiccup in build won't crash the page
+  let articles: Array<{
+    slug: string
+    title: string
+    date: string
+    readTime: string
+    excerpt: string
+  }> = []
+
+  try {
+    articles = getAllNewsletterArticles()
+  } catch {
+    articles = []
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
