@@ -4,7 +4,8 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import NewsletterSubscribeForm from "@/components/newsletter-subscribe-form"
 
-// 🔧 Force runtime rendering to avoid SSG/serialization issues
+// ✅ Force server runtime + disable SSG/ISR to avoid serialization errors
+export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 export const fetchCache = "force-no-store"
@@ -14,19 +15,31 @@ export const metadata: Metadata = {
   description: "Weekly insights on productivity, time management, and intentional living from LATE.",
 }
 
+type ArticleLite = {
+  slug: string
+  title: string
+  date: string
+  readTime: string
+  excerpt: string
+}
+
 export default function NewsletterPage() {
-  // Guard so a serialization hiccup in build won't crash the page
-  let articles: Array<{
-    slug: string
-    title: string
-    date: string
-    readTime: string
-    excerpt: string
-  }> = []
+  let articles: ArticleLite[] = []
 
   try {
-    articles = getAllNewsletterArticles()
-  } catch {
+    const list = getAllNewsletterArticles()
+    // Normalize to JSON-serializable primitives (avoid Date/objects/functions)
+    articles = Array.isArray(list)
+      ? list.map((a: any) => ({
+          slug: String(a?.slug ?? ""),
+          title: String(a?.title ?? ""),
+          date: String(a?.date ?? ""),
+          readTime: String(a?.readTime ?? ""),
+          excerpt: String(a?.excerpt ?? ""),
+        }))
+      : []
+  } catch (err) {
+    console.error("[/newsletter] getAllNewsletterArticles error:", err)
     articles = []
   }
 
@@ -74,35 +87,41 @@ export default function NewsletterPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {articles.map((article) => (
-                <article
-                  key={article.slug}
-                  className="bg-white dark:bg-zinc-900 rounded-xl overflow-hidden shadow-md dark:shadow-none hover:shadow-xl dark:hover:shadow-purple-500/20 transition-all duration-300 border border-gray-100 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-700"
-                >
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-sm font-medium text-purple-600 dark:text-purple-400">{article.date}</span>
-                      <span className="text-xs text-gray-500 dark:text-zinc-500">• {article.readTime} min read</span>
+            {articles.length === 0 ? (
+              <p className="text-gray-600 dark:text-zinc-400">
+                No articles yet. Subscribe above and you’ll get our next letter.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {articles.map((article) => (
+                  <article
+                    key={article.slug}
+                    className="bg-white dark:bg-zinc-900 rounded-xl overflow-hidden shadow-md dark:shadow-none hover:shadow-xl dark:hover:shadow-purple-500/20 transition-all duration-300 border border-gray-100 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-700"
+                  >
+                    <div className="p-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-sm font-medium text-purple-600 dark:text-purple-400">{article.date}</span>
+                        <span className="text-xs text-gray-500 dark:text-zinc-500">• {article.readTime} min read</span>
+                      </div>
+
+                      <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white line-clamp-2">
+                        {article.title}
+                      </h3>
+
+                      <p className="text-gray-600 dark:text-zinc-400 mb-4 line-clamp-3">{article.excerpt}</p>
+
+                      <Link
+                        href={`/newsletter/${article.slug}`}
+                        className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors font-medium group"
+                      >
+                        Read Article
+                        <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                      </Link>
                     </div>
-
-                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white line-clamp-2">
-                      {article.title}
-                    </h3>
-
-                    <p className="text-gray-600 dark:text-zinc-400 mb-4 line-clamp-3">{article.excerpt}</p>
-
-                    <Link
-                      href={`/newsletter/${article.slug}`}
-                      className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors font-medium group"
-                    >
-                      Read Article
-                      <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-                    </Link>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
