@@ -75,8 +75,7 @@ export async function POST(req: NextRequest) {
   await Promise.all([sendWelcome(email, unsubscribe_token), sendAdmin(email)])
 
   return NextResponse.json({
-    success: true,
-    message: "Thanks for subscribing! We just sent you a confirmation email.",
-    data: record,
-  })
+  success: true,
+  message: "Thanks for subscribing! We just sent you a confirmation email."
+})
 }
