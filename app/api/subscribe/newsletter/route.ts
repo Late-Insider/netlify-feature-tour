@@ -77,5 +77,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     success: true,
     message: "Thanks for subscribing! We just sent you a confirmation email.",
+    data: record,
   })
 }
