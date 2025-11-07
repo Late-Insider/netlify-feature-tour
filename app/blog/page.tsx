@@ -1,11 +1,9 @@
+// Server redirect to /newsletter
 import { redirect } from "next/navigation"
-import type { Metadata } from "next"
 
-export const metadata: Metadata = {
-  title: "Newsletter - LATE",
-  description: "Every Late Thoughts story now lives inside the weekly newsletter archive.",
-}
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
-export default function BlogPage() {
+export default function BlogIndexRedirect() {
   redirect("/newsletter")
 }
