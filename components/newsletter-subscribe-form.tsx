@@ -32,12 +32,23 @@ export default function NewsletterSubscribeForm() {
         body: JSON.stringify({ email, source: "newsletter_form" }),
       })
 
-      const payload = await res.json().catch(() => ({} as any))
+      // Be tolerant of any JSON shape and log for debugging
+      let payload: any = {}
+      try {
+        payload = await res.json()
+      } catch {
+        payload = {}
+      }
 
-      // ✅ Treat success by checking payload.success === true
-      if (payload?.success === true) {
+      // Helpful console to see exactly what's returned in Preview/Prod
+      // (Open DevTools > Console while testing)
+      console.log("[newsletter-subscribe] status:", res.status, "payload:", payload)
+
+      // ✅ Success if the API returns either { success: true } or legacy { ok: true }
+      const succeeded = payload?.success === true || payload?.ok === true
+
+      if (succeeded) {
         e.currentTarget.reset()
-        // brief, on-brand success copy
         setSuccessMessage(
           "Thank you for subscribing! We just sent a confirmation email to your inbox."
         )
@@ -45,9 +56,16 @@ export default function NewsletterSubscribeForm() {
         return
       }
 
-      // If the server returned 200 but without success:true, fall back to error
-      setError(payload?.error || "Subscription failed. Please try again.")
-    } catch {
+      // Map soft failures to a friendly message
+      const friendly =
+        payload?.error ||
+        payload?.reason ||
+        (res.status === 422
+          ? "Please provide a valid email."
+          : "Subscription failed. Please try again.")
+
+      setError(friendly)
+    } catch (err) {
       setError("Failed to subscribe. Please try again later.")
     } finally {
       setIsLoading(false)
