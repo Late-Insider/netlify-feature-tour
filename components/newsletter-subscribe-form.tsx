@@ -1,6 +1,10 @@
 "use client"
 
+import type React from "react"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Check, Mail } from "lucide-react"
 
 export default function NewsletterSubscribeForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -8,73 +12,106 @@ export default function NewsletterSubscribeForm() {
   const [successMessage, setSuccessMessage] = useState("")
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault()
-  setIsLoading(true)
-  setError("")
-  setSuccessMessage("")
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccessMessage("")
 
-  const fd = new FormData(e.currentTarget)
-  const email = String(fd.get("email") ?? "").trim()
+    const fd = new FormData(e.currentTarget)
+    const email = String(fd.get("email") ?? "").trim()
 
-  try {
-    if (!email) {
-      setError("Please enter your email address.")
-      return
-    }
+    try {
+      if (!email) {
+        setError("Please enter your email address.")
+        return
+      }
 
-    const res = await fetch("/api/subscribe/newsletter", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, source: "newsletter_form" }),
-    })
+      const res = await fetch("/api/subscribe/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, source: "newsletter_form" }),
+      })
 
-    const payload = await res.json().catch(() => ({} as any))
+      const payload = await res.json().catch(() => ({} as any))
 
-    // ✅ Accept success only when payload.success === true
-    if (payload?.success !== true) {
+      // ✅ Treat success by checking payload.success === true
+      if (payload?.success === true) {
+        e.currentTarget.reset()
+        // brief, on-brand success copy
+        setSuccessMessage(
+          "Thank you for subscribing! We just sent a confirmation email to your inbox."
+        )
+        setTimeout(() => setSuccessMessage(""), 6000)
+        return
+      }
+
+      // If the server returned 200 but without success:true, fall back to error
       setError(payload?.error || "Subscription failed. Please try again.")
-      return
+    } catch {
+      setError("Failed to subscribe. Please try again later.")
+    } finally {
+      setIsLoading(false)
     }
-
-    e.currentTarget.reset()
-    setSuccessMessage(
-      "Thank you for subscribing to our newsletter! You'll receive our next issue soon. A confirmation email has been sent to your inbox."
-    )
-    setTimeout(() => setSuccessMessage(""), 6000)
-  } catch {
-    setError("Failed to subscribe. Please try again later.")
-  } finally {
-    setIsLoading(false)
   }
-}
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {successMessage && (
+        <div className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-purple-700 dark:border-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
+          <Check className="mt-0.5 h-5 w-5" />
+          <div>
+            <p className="font-semibold">Subscribed!</p>
+            <p className="text-sm">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
       <div>
-        <input
+        <Input
+          type="text"
+          name="name"
+          placeholder="Your Name (optional)"
+          className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        />
+      </div>
+
+      <div>
+        <Input
           type="email"
           name="email"
-          placeholder="Enter your email"
-          className="w-full rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-600 outline-none"
-          disabled={isLoading}
+          placeholder="Your Email Address"
+          required
+          className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
         />
       </div>
 
       {error && (
-        <p className="text-red-500 text-sm">{error}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg">
+          {error}
+        </div>
       )}
 
-      {successMessage && (
-        <p className="text-green-600 text-sm">{successMessage}</p>
-      )}
-
-      <button
+      <Button
         type="submit"
         disabled={isLoading}
-        className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300"
       >
-        {isLoading ? "Submitting..." : "Subscribe"}
-      </button>
+        {isLoading ? (
+          <span className="flex items-center justify-center gap-2">
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Subscribing...
+          </span>
+        ) : (
+          <span className="flex items-center justify-center gap-2">
+            <Mail className="w-5 h-5" />
+            Subscribe to Newsletter
+          </span>
+        )}
+      </Button>
+
+      <p className="text-xs text-center text-gray-500 dark:text-zinc-500">
+        We respect your privacy. Unsubscribe at any time.
+      </p>
     </form>
   )
 }
