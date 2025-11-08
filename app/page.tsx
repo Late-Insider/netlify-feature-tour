@@ -1,6 +1,6 @@
+// app/page.tsx
 import Link from "next/link"
-import { ArrowDown } from "lucide-react"
-import WeeklyInsights from "@/components/weekly-insights"
+import { ArrowDown, ArrowRight } from "lucide-react"
 import ShopTeaser from "@/components/shop-teaser"
 import ContactSection from "@/components/contact-section"
 import PodcastSection from "@/components/podcast-section"
@@ -107,8 +107,24 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Weekly Insights Section - Shows Latest Article Only */}
-      <WeeklyInsights />
+      {/* Newsletter CTA (replaces WeeklyInsights to avoid build-time imports) */}
+      <section className="py-20 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">Weekly Insights</h2>
+            <p className="text-lg text-gray-600 dark:text-zinc-400 mb-8">
+              Thought-provoking, soul-soothing essays—delivered once a week.
+            </p>
+            <Link
+              href="/newsletter"
+              className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Explore the Newsletter
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* Shop Section */}
       <ShopTeaser />
