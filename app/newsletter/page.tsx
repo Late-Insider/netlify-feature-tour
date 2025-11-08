@@ -1,56 +1,135 @@
-import NextDynamic from "next/dynamic"
+"use client"
 
-// Load the client component only on the client
-const NewsletterSubscribeForm = NextDynamic(
-  () => import("@/components/newsletter-subscribe-form").then((m) => m.default ?? m),
-  { ssr: false }
-)
+import type React from "react"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Check, Mail } from "lucide-react"
 
-export const dynamic = "force-dynamic"
-export const revalidate = 0
+export default function NewsletterSubscribeForm() {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
 
-export default function NewsletterPage() {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccessMessage("")
+
+    const fd = new FormData(e.currentTarget)
+    const email = String(fd.get("email") ?? "").trim()
+
+    try {
+      if (!email) {
+        setError("Please enter your email address.")
+        return
+      }
+
+      const res = await fetch("/api/subscribe/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, source: "newsletter_form" }),
+      })
+
+      // Be tolerant of any JSON shape and log for debugging
+      let payload: any = {}
+      try {
+        payload = await res.json()
+      } catch {
+        payload = {}
+      }
+
+      // Helpful console to see exactly what's returned in Preview/Prod
+      // (Open DevTools > Console while testing)
+      console.log("[newsletter-subscribe] status:", res.status, "payload:", payload)
+
+      // ✅ Success if the API returns either { success: true } or legacy { ok: true }
+      const succeeded = payload?.success === true || payload?.ok === true
+
+      if (succeeded) {
+        e.currentTarget.reset()
+        setSuccessMessage(
+          "Thank you for subscribing! We just sent a confirmation email to your inbox."
+        )
+        setTimeout(() => setSuccessMessage(""), 6000)
+        return
+      }
+
+      // Map soft failures to a friendly message
+      const friendly =
+        payload?.error ||
+        payload?.reason ||
+        (res.status === 422
+          ? "Please provide a valid email."
+          : "Subscription failed. Please try again.")
+
+      setError(friendly)
+    } catch (err) {
+      setError("Failed to subscribe. Please try again later.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
-      {/* Hero */}
-      <section className="relative py-20 bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 tracking-tight">WEEKLY INSIGHTS</h1>
-            <p className="text-xl md:text-2xl mb-8 text-purple-100">
-              Intentional reflections, gathered in one steady cadence.
-            </p>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {successMessage && (
+        <div className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-purple-700 dark:border-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
+          <Check className="mt-0.5 h-5 w-5" />
+          <div>
+            <p className="font-semibold">Subscribed!</p>
+            <p className="text-sm">{successMessage}</p>
           </div>
         </div>
-      </section>
+      )}
 
-      {/* Subscribe box */}
-      <section className="py-16 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800">
-        <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-900 p-8 md:p-12 rounded-2xl border border-purple-100 dark:border-zinc-700">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold mb-3 text-gray-900 dark:text-white">Subscribe to Our Newsletter</h2>
-                <p className="text-lg text-gray-600 dark:text-zinc-400">
-                  Get weekly insights delivered directly to your inbox.
-                </p>
-              </div>
+      <div>
+        <Input
+          type="text"
+          name="name"
+          placeholder="Your Name (optional)"
+          className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        />
+      </div>
 
-              <NewsletterSubscribeForm />
-            </div>
-          </div>
+      <div>
+        <Input
+          type="email"
+          name="email"
+          placeholder="Your Email Address"
+          required
+          className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        />
+      </div>
+
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg">
+          {error}
         </div>
-      </section>
+      )}
 
-      {/* Under construction note */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto text-center text-gray-700 dark:text-zinc-300">
-            <p>Page currently under reconstruction. Articles will be accessible again soon.</p>
-          </div>
-        </div>
-      </section>
-    </div>
+      <Button
+        type="submit"
+        disabled={isLoading}
+        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300"
+      >
+        {isLoading ? (
+          <span className="flex items-center justify-center gap-2">
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Subscribing...
+          </span>
+        ) : (
+          <span className="flex items-center justify-center gap-2">
+            <Mail className="w-5 h-5" />
+            Subscribe to Newsletter
+          </span>
+        )}
+      </Button>
+
+      <p className="text-xs text-center text-gray-500 dark:text-zinc-500">
+        We respect your privacy. Unsubscribe at any time.
+      </p>
+    </form>
   )
 }
