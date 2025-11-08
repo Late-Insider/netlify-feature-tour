@@ -1,7 +1,15 @@
 // app/newsletter/page.tsx
-"use client"
+import dynamic from "next/dynamic"
 
-import NewsletterSubscribeForm from "@/components/newsletter-subscribe-form"
+// Load the client component only on the client
+const NewsletterSubscribeForm = dynamic(
+  () =>
+    import("@/components/newsletter-subscribe-form").then((m) => m.default ?? m),
+  { ssr: false }
+)
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export default function NewsletterPage() {
   return (
@@ -31,15 +39,12 @@ export default function NewsletterPage() {
                 We’re rebuilding the archive. Articles will be accessible again soon.
               </p>
             </div>
-
-            <p className="mt-6 text-sm text-gray-500 dark:text-zinc-500">
-              Thanks for your patience.
-            </p>
+            <p className="mt-6 text-sm text-gray-500 dark:text-zinc-500">Thanks for your patience.</p>
           </div>
         </div>
       </section>
 
-      {/* Subscribe box */}
+      {/* Subscribe box (client-only form) */}
       <section className="py-16 bg-white dark:bg-zinc-900">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto">
