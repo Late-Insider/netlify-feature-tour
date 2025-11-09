@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,65 +11,61 @@ export default function NewsletterSubscribeForm() {
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    setSuccessMessage("")
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault()
+  setIsLoading(true)
+  setError("")
+  setSuccessMessage("")
 
-    const fd = new FormData(e.currentTarget)
-    const email = String(fd.get("email") ?? "").trim()
+  const fd = new FormData(e.currentTarget)
+  const email = String(fd.get("email") ?? "").trim()
 
+  try {
+    if (!email) {
+      setError("Please enter your email address.")
+      return
+    }
+
+    const res = await fetch("/api/subscribe/newsletter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, source: "newsletter_form" }),
+    })
+
+    // Try JSON, fall back to text (for helpful error messages)
+    let payload: any = null
+    let raw = ""
     try {
-      if (!email) {
-        setError("Please enter your email address.")
-        return
-      }
-
-      const res = await fetch("/api/subscribe/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: "newsletter_form" }),
-      })
-
-      // Try to decode json; if not json, keep a raw text hint for debugging
-      let payload: any = null
-      let raw = ""
+      payload = await res.json()
+    } catch {
       try {
-        payload = await res.json()
-      } catch {
-        try {
-          raw = await res.text()
-        } catch {
-          raw = ""
-        }
-      }
+        raw = await res.text()
+      } catch {}
+    }
 
-      // Treat both brand-new subscriptions and “already” as success
-      const isSuccess =
-        res.ok && payload && (payload.success === true || payload.already === true)
-
-      if (!isSuccess) {
-        // Put something useful on screen so we can see why
-        const msg =
-          (payload && (payload.error || payload.reason || payload.message)) ||
-          (raw ? `Unexpected response: ${raw.slice(0, 160)}` : "") ||
-          "Subscription failed. Please try again."
-        setError(msg)
-        return
-      }
-
+    // ✅ Consider ANY 2xx a success (your API is working)
+    if (res.ok) {
       e.currentTarget.reset()
       setSuccessMessage(
-        "Thanks for subscribing! We just sent a confirmation email to your inbox."
+        "Thank you for subscribing to our newsletter! You'll receive our next issue soon. A confirmation email has been sent to your inbox."
       )
       setTimeout(() => setSuccessMessage(""), 6000)
-    } catch {
-      setError("Failed to subscribe. Please try again later.")
-    } finally {
-      setIsLoading(false)
+      return
     }
+
+    // Non-2xx → show a useful error
+    setError(
+      payload?.error ||
+        payload?.reason ||
+        payload?.message ||
+        (raw ? `Unexpected response: ${raw.slice(0, 160)}` : "Subscription failed. Please try again.")
+    )
+  } catch {
+    setError("Failed to subscribe. Please try again later.")
+  } finally {
+    setIsLoading(false)
   }
+}
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
