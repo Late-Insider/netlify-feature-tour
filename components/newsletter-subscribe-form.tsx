@@ -1,77 +1,77 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Check, Mail } from "lucide-react"
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Check, Mail } from "lucide-react";
 
 export default function NewsletterSubscribeForm() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [successMessage, setSuccessMessage] = useState("")
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const [successMessage, setSuccessMessage] = React.useState("");
 
- const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault()
-  setIsLoading(true)
-  setError("")
-  setSuccessMessage("")
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+    setSuccessMessage("");
 
-  const fd = new FormData(e.currentTarget)
-  const email = String(fd.get("email") ?? "").trim()
+    const fd = new FormData(e.currentTarget);
+    const email = String(fd.get("email") ?? "").trim();
 
-  try {
-    if (!email) {
-      setError("Please enter your email address.")
-      return
-    }
-
-    const res = await fetch("/api/subscribe/newsletter", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, source: "newsletter_form" }),
-    })
-
-    // Parse safely
-    let payload: any = {}
     try {
-      payload = await res.json()
+      if (!email) {
+        setError("Please enter your email address.");
+        return;
+      }
+
+      const res = await fetch("/api/subscribe/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, source: "newsletter_form" }),
+      });
+
+      let payload: any = {};
+      try {
+        payload = await res.json();
+      } catch {
+        payload = {};
+      }
+
+      // Log once to verify what's coming back
+      console.log("[newsletter subscribe] status/payload:", res.status, payload);
+
+      const is2xx = res.status >= 200 && res.status < 300;
+      const explicitSuccess = payload?.success === true || payload?.ok === true;
+      const noExplicitError =
+        typeof payload?.error === "undefined" && typeof payload?.reason === "undefined";
+      const emptyBody = Object.keys(payload).length === 0;
+
+      const succeeded = explicitSuccess || (is2xx && (noExplicitError || emptyBody));
+
+      if (succeeded) {
+        e.currentTarget.reset();
+        setError("");
+        setSuccessMessage(
+          "Thank you for subscribing! We just sent a confirmation email to your inbox."
+        );
+        setTimeout(() => setSuccessMessage(""), 6000);
+        return;
+      }
+
+      const friendly =
+        payload?.error ||
+        payload?.reason ||
+        (res.status === 422
+          ? "Please provide a valid email."
+          : "Subscription failed. Please try again.");
+      setError(friendly);
     } catch {
-      payload = {}
+      setError("Failed to subscribe. Please try again later.");
+    } finally {
+      setIsLoading(false);
     }
-
-    // ✅ Broad success conditions
-    const hasExplicitSuccess = payload?.success === true || payload?.ok === true
-    const noErrorInPayload = typeof payload?.error === "undefined" && typeof payload?.reason === "undefined"
-    const is2xx = res.status >= 200 && res.status < 300
-    const emptyBody = Object.keys(payload).length === 0
-
-    const succeeded =
-      hasExplicitSuccess ||
-      (is2xx && (noErrorInPayload || emptyBody))
-
-    if (succeeded) {
-      e.currentTarget.reset()
-      setError("") // clear any lingering error
-      setSuccessMessage("Thank you for subscribing! We just sent a confirmation email to your inbox.")
-      setTimeout(() => setSuccessMessage(""), 6000)
-      return
-    }
-
-    // Friendly error mapping
-    const friendly =
-      payload?.error ||
-      payload?.reason ||
-      (res.status === 422
-        ? "Please provide a valid email."
-        : "Subscription failed. Please try again.")
-    setError(friendly)
-  } catch {
-    setError("Failed to subscribe. Please try again later.")
-  } finally {
-    setIsLoading(false)
-  }
-}
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,15 +84,6 @@ export default function NewsletterSubscribeForm() {
           </div>
         </div>
       )}
-
-      <div>
-        <Input
-          type="text"
-          name="name"
-          placeholder="Your Name (optional)"
-          className="bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-        />
-      </div>
 
       <div>
         <Input
@@ -132,5 +123,5 @@ export default function NewsletterSubscribeForm() {
         We respect your privacy. Unsubscribe at any time.
       </p>
     </form>
-  )
+  );
 }
