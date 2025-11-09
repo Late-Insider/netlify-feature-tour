@@ -1,39 +1,62 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Mail, Check } from "lucide-react"
-import { handleNewsletterSubscription } from "@/actions/email-actions"
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Mail, Check } from "lucide-react";
 
 export default function NewsletterSection() {
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [isSubmitted, setIsSubmitted] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
-    const formData = new FormData(e.currentTarget)
+    const fd = new FormData(e.currentTarget);
+    const email = String(fd.get("email") ?? "").trim();
 
     try {
-      const result = await handleNewsletterSubscription(formData)
-
-      if (result.success) {
-        setIsSubmitted(true)
-      } else {
-        setError(result.message || "Something went wrong. Please try again.")
+      if (!email) {
+        setError("Please enter your email address.");
+        return;
       }
-    } catch (err) {
-      setError("Failed to subscribe. Please try again later.")
+
+      const res = await fetch("/api/subscribe/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          source: "newsletter_hero_section", // track where it came from
+        }),
+      });
+
+      // ✅ Consider any 2xx a success
+      if (res.ok) {
+        setIsSubmitted(true);
+        return;
+      }
+
+      // Non-2xx → try to surface a friendly message
+      let payload: any = {};
+      try {
+        payload = await res.json();
+      } catch {}
+      setError(
+        payload?.error ||
+          payload?.reason ||
+          (res.status === 422
+            ? "Please provide a valid email."
+            : "Something went wrong. Please try again.")
+      );
+    } catch {
+      setError("Failed to subscribe. Please try again later.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <section
@@ -51,7 +74,8 @@ export default function NewsletterSection() {
 
           <h2 className="text-4xl md:text-5xl font-bold mb-4">WEEKLY INSIGHTS</h2>
           <p className="text-xl text-purple-100 mb-8">
-            Join our community and receive thoughtful perspectives on intentional living, delivered every week.
+            Join our community and receive thoughtful perspectives on
+            intentional living, delivered every week.
           </p>
 
           {!isSubmitted ? (
@@ -92,7 +116,9 @@ export default function NewsletterSection() {
                   )}
                 </Button>
 
-                <p className="text-xs text-purple-200">No spam. Unsubscribe at any time.</p>
+                <p className="text-xs text-purple-200">
+                  No spam. Unsubscribe at any time.
+                </p>
               </form>
             </div>
           ) : (
@@ -102,14 +128,15 @@ export default function NewsletterSection() {
                   <Check className="w-8 h-8 text-purple-900" />
                 </div>
               </div>
-              <h3 className="text-2xl font-bold mb-2">Welcome to the Community!</h3>
+              <h3 className="text-2xl font-bold mb-2">Thanks for subscribing!</h3>
               <p className="text-purple-100">
-                Check your inbox for a confirmation email. You'll receive our next newsletter soon.
+                We just sent a confirmation email to your inbox. You’ll receive
+                our next issue soon.
               </p>
             </div>
           )}
         </div>
       </div>
     </section>
-  )
+  );
 }
