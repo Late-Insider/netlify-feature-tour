@@ -32,7 +32,7 @@ export default function NewsletterSubscribeForm() {
       body: JSON.stringify({ email, source: "newsletter_form" }),
     })
 
-    // Parse very defensively
+    // Parse safely
     let payload: any = {}
     try {
       payload = await res.json()
@@ -40,19 +40,20 @@ export default function NewsletterSubscribeForm() {
       payload = {}
     }
 
-    // Accept either shape: { success: true } or { ok: true }
+    // ✅ Broad success conditions
+    const hasExplicitSuccess = payload?.success === true || payload?.ok === true
+    const noErrorInPayload = typeof payload?.error === "undefined" && typeof payload?.reason === "undefined"
+    const is2xx = res.status >= 200 && res.status < 300
+    const emptyBody = Object.keys(payload).length === 0
+
     const succeeded =
-      payload?.success === true ||
-      payload?.ok === true
+      hasExplicitSuccess ||
+      (is2xx && (noErrorInPayload || emptyBody))
 
-    // Also treat any 200 with no JSON as success (fail-safe)
-    const httpSuccessNoJson = res.status === 200 && Object.keys(payload).length === 0
-
-    if (succeeded || httpSuccessNoJson) {
+    if (succeeded) {
       e.currentTarget.reset()
-      setError("") // ensure red banner is cleared
+      setError("") // clear any lingering error
       setSuccessMessage("Thank you for subscribing! We just sent a confirmation email to your inbox.")
-      // keep the toast visible for a few seconds
       setTimeout(() => setSuccessMessage(""), 6000)
       return
     }
@@ -64,7 +65,6 @@ export default function NewsletterSubscribeForm() {
       (res.status === 422
         ? "Please provide a valid email."
         : "Subscription failed. Please try again.")
-
     setError(friendly)
   } catch {
     setError("Failed to subscribe. Please try again later.")
