@@ -11,66 +11,67 @@ export default function NewsletterSubscribeForm() {
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    setSuccessMessage("")
+ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault()
+  setIsLoading(true)
+  setError("")
+  setSuccessMessage("")
 
-    const fd = new FormData(e.currentTarget)
-    const email = String(fd.get("email") ?? "").trim()
+  const fd = new FormData(e.currentTarget)
+  const email = String(fd.get("email") ?? "").trim()
 
-    try {
-      if (!email) {
-        setError("Please enter your email address.")
-        return
-      }
-
-      const res = await fetch("/api/subscribe/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: "newsletter_form" }),
-      })
-
-      // Be tolerant of any JSON shape and log for debugging
-      let payload: any = {}
-      try {
-        payload = await res.json()
-      } catch {
-        payload = {}
-      }
-
-      // Helpful console to see exactly what's returned in Preview/Prod
-      // (Open DevTools > Console while testing)
-      console.log("[newsletter-subscribe] status:", res.status, "payload:", payload)
-
-      // ✅ Success if the API returns either { success: true } or legacy { ok: true }
-      const succeeded = payload?.success === true || payload?.ok === true
-
-      if (succeeded) {
-        e.currentTarget.reset()
-        setSuccessMessage(
-          "Thank you for subscribing! We just sent a confirmation email to your inbox."
-        )
-        setTimeout(() => setSuccessMessage(""), 6000)
-        return
-      }
-
-      // Map soft failures to a friendly message
-      const friendly =
-        payload?.error ||
-        payload?.reason ||
-        (res.status === 422
-          ? "Please provide a valid email."
-          : "Subscription failed. Please try again.")
-
-      setError(friendly)
-    } catch (err) {
-      setError("Failed to subscribe. Please try again later.")
-    } finally {
-      setIsLoading(false)
+  try {
+    if (!email) {
+      setError("Please enter your email address.")
+      return
     }
+
+    const res = await fetch("/api/subscribe/newsletter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, source: "newsletter_form" }),
+    })
+
+    // Parse very defensively
+    let payload: any = {}
+    try {
+      payload = await res.json()
+    } catch {
+      payload = {}
+    }
+
+    // Accept either shape: { success: true } or { ok: true }
+    const succeeded =
+      payload?.success === true ||
+      payload?.ok === true
+
+    // Also treat any 200 with no JSON as success (fail-safe)
+    const httpSuccessNoJson = res.status === 200 && Object.keys(payload).length === 0
+
+    if (succeeded || httpSuccessNoJson) {
+      e.currentTarget.reset()
+      setError("") // ensure red banner is cleared
+      setSuccessMessage("Thank you for subscribing! We just sent a confirmation email to your inbox.")
+      // keep the toast visible for a few seconds
+      setTimeout(() => setSuccessMessage(""), 6000)
+      return
+    }
+
+    // Friendly error mapping
+    const friendly =
+      payload?.error ||
+      payload?.reason ||
+      (res.status === 422
+        ? "Please provide a valid email."
+        : "Subscription failed. Please try again.")
+
+    setError(friendly)
+  } catch {
+    setError("Failed to subscribe. Please try again later.")
+  } finally {
+    setIsLoading(false)
   }
+}
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
