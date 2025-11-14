@@ -38,44 +38,42 @@ async function sendWelcome(email: string, token: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null)
+  const body = await req.json().catch(() => null);
   if (!body?.email || typeof body.email !== "string") {
-    return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 })
+    return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
   }
 
-  const email = body.email.trim().toLowerCase()
+  const email = body.email.trim().toLowerCase();
   if (!EMAIL.test(email)) {
-    return NextResponse.json({ success: false, error: "Please provide a valid email." }, { status: 422 })
+    return NextResponse.json({ success: false, error: "Please provide a valid email." }, { status: 422 });
   }
 
-  const source = typeof body.source === "string" ? body.source.trim() : "newsletter_form"
+  const source = typeof body.source === "string" ? body.source.trim() : "newsletter_form";
+  const client = createServiceRoleClient();
+  const unsubscribe_token = crypto.randomUUID();
 
-  // ensure a token on the row
-  const client = createServiceRoleClient()
-  const unsubscribe_token = crypto.randomUUID()
+  try {
+    // Insert / detect duplicate
+    await addSubscriber({ email, category: "newsletter", status: "pending", source });
 
-  // Insert (or detect duplicate) using your helper
-  const res = await addSubscriber({
-    email,
-    category: "newsletter",
-    status: "pending",
-    source,
-  })
+    // Ensure a token exists (ignore if the table/cols temporarily lag)
+    if (client) {
+      await client
+        .from("subscribers")
+        .update({ unsubscribe_token })
+        .eq("email", email)
+        .eq("category", "newsletter");
+    }
 
-  // If we just created it (or even if duplicate), make sure the token exists
-  if (client) {
-    await client
-      .from("subscribers")
-      .update({ unsubscribe_token })
-      .eq("email", email)
-      .eq("category", "newsletter")
+    // Send emails in parallel; do not let failures affect status code
+    await Promise.allSettled([sendWelcome(email, unsubscribe_token), sendAdmin(email)]);
+  } catch (err) {
+    // Log server-side but DO NOT flip status for a good email input
+    console.warn("newsletter subscribe soft-error:", err);
   }
-
-  // Send emails (welcome + admin). Even for duplicates we succeed.
-  await Promise.all([sendWelcome(email, unsubscribe_token), sendAdmin(email)])
 
   return NextResponse.json({
-  success: true,
-  message: "Thanks for subscribing! We just sent you a confirmation email."
-})
+    success: true,
+    message: "Thanks for subscribing! We just sent you a confirmation email.",
+  });
 }
