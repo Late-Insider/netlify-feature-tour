@@ -32,19 +32,21 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       body: JSON.stringify({ email, source: "newsletter_form" }),
     })
 
-    // Try JSON, fall back to text (for helpful error messages)
-    let payload: any = null
-    let raw = ""
-    try {
-      payload = await res.json()
-    } catch {
-      try {
-        raw = await res.text()
-      } catch {}
-    }
+    // Read once; try JSON then fall back to raw text
+    const raw = await res.text()
+    let payload: any = {}
+    try { payload = JSON.parse(raw) } catch {}
 
-    // ✅ Consider ANY 2xx a success (your API is working)
-    if (res.ok) {
+    const msg = String(
+      payload?.error || payload?.reason || payload?.message || ""
+    ).toLowerCase()
+
+    // ✅ Treat these as success
+    if (
+      res.ok ||
+      payload?.success === true ||
+      msg.includes("already") // “already subscribed/exists”
+    ) {
       e.currentTarget.reset()
       setSuccessMessage(
         "Thank you for subscribing to our newsletter! You'll receive our next issue soon. A confirmation email has been sent to your inbox."
@@ -53,12 +55,14 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       return
     }
 
-    // Non-2xx → show a useful error
+    // Non-2xx and not explicitly success → show helpful error
     setError(
       payload?.error ||
         payload?.reason ||
-        payload?.message ||
-        (raw ? `Unexpected response: ${raw.slice(0, 160)}` : "Subscription failed. Please try again.")
+        (res.status === 422
+          ? "Please provide a valid email."
+          : raw ? `Unexpected response: ${raw.slice(0, 160)}`
+                : "Subscription failed. Please try again.")
     )
   } catch {
     setError("Failed to subscribe. Please try again later.")
