@@ -11,53 +11,52 @@ export default function NewsletterSection() {
   const [error, setError] = React.useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+  e.preventDefault()
+  setIsLoading(true)
+  setError("")
 
-    const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email") ?? "").trim();
+  const fd = new FormData(e.currentTarget)
+  const email = String(fd.get("email") ?? "").trim()
 
-    try {
-      if (!email) {
-        setError("Please enter your email address.");
-        return;
-      }
-
-      const res = await fetch("/api/subscribe/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          source: "newsletter_hero_section", // track where it came from
-        }),
-      });
-
-      // ✅ Consider any 2xx a success
-      if (res.ok) {
-        setIsSubmitted(true);
-        return;
-      }
-
-      // Non-2xx → try to surface a friendly message
-      let payload: any = {};
-      try {
-        payload = await res.json();
-      } catch {}
-      setError(
-        payload?.error ||
-          payload?.reason ||
-          (res.status === 422
-            ? "Please provide a valid email."
-            : "Something went wrong. Please try again.")
-      );
-    } catch {
-      setError("Failed to subscribe. Please try again later.");
-    } finally {
-      setIsLoading(false);
+  try {
+    if (!email) {
+      setError("Please enter your email address.")
+      return
     }
-  };
 
+    const res = await fetch("/api/subscribe/newsletter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, source: "newsletter_hero_section" }),
+    })
+
+    const raw = await res.text()
+    let payload: any = {}
+    try { payload = JSON.parse(raw) } catch {}
+
+    const msg = String(
+      payload?.error || payload?.reason || payload?.message || ""
+    ).toLowerCase()
+
+    if (res.ok || payload?.success === true || msg.includes("already")) {
+      setIsSubmitted(true)
+      return
+    }
+
+    setError(
+      payload?.error ||
+        payload?.reason ||
+        (res.status === 422
+          ? "Please provide a valid email."
+          : raw ? `Unexpected response: ${raw.slice(0, 160)}`
+                : "Something went wrong. Please try again.")
+    )
+  } catch {
+    setError("Failed to subscribe. Please try again later.")
+  } finally {
+    setIsLoading(false)
+  }
+}
   return (
     <section
       id="newsletter"
