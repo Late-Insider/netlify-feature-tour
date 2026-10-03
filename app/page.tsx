@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowDownRight, Camera, Menu, Music2, X } from 'lucide-react'
+import { ArrowDownRight, Menu, X } from 'lucide-react'
 
 function BronzeKeyMark({ className = '' }: { className?: string }) {
   return (
@@ -10,6 +10,24 @@ function BronzeKeyMark({ className = '' }: { className?: string }) {
       <circle cx="16" cy="15" r="3.1" stroke="currentColor" strokeWidth="1.4" />
       <path d="M22.4 20.8 38.8 37.2M31.4 29.8l3.5-3.5M35.5 33.9l3.1-3.1" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M13.5 6.9c-2.4-1.1-5-.7-6.9.7M9.1 22.8c1.8 1.3 4.1 1.7 6.3 1" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity=".7" />
+    </svg>
+  )
+}
+
+function InstagramIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.25" y="3.25" width="17.5" height="17.5" rx="5" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="4.1" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="17.35" cy="6.8" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+function TikTokIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M14.2 4v10.1a4.3 4.3 0 1 1-3.4-4.2v2.35a2 2 0 1 0 1.1 1.85V4h2.3c.25 1.2 1.02 2.07 2.3 2.42v2.28A5.45 5.45 0 0 1 14.2 8V4Z" fill="currentColor" />
     </svg>
   )
 }
@@ -42,9 +60,8 @@ export default function Home() {
 
       <section id="top" className="relative z-10 flex min-h-[calc(100svh-96px)] items-center justify-center px-6 pb-24 pt-10 text-center sm:px-10">
         <div className="hero-content flex max-w-3xl flex-col items-center">
-          <p className="mb-6 text-[10px] font-medium uppercase tracking-[0.5em] text-orange-100/80 sm:text-xs">A practice of presence</p>
+          <h2 className="mb-6 font-serif text-xl font-light italic tracking-wide text-orange-50/90 sm:text-2xl">A Daily Invitation to Presence.</h2>
           <h1 className="font-serif text-[clamp(4.25rem,15vw,11rem)] font-light leading-[0.8] tracking-[-0.075em] text-white drop-shadow-[0_4px_28px_rgba(0,0,0,0.35)]">Go Within</h1>
-          <h2 className="mt-9 font-serif text-xl font-light italic tracking-wide text-orange-50/90 sm:text-2xl">A Daily Invitation to Presence.</h2>
           <p className="mt-5 max-w-xl text-sm font-light leading-7 text-white/75 sm:text-base sm:leading-8">Find the quiet beneath the noise. Every day, we publish a single, five-minute reflection designed to return you to the part of you that already knows. Welcome to the practice.</p>
           <button type="button" onClick={() => setShowSubscribe((current) => !current)} className="mt-9 inline-flex items-center gap-4 rounded-full border border-white/50 bg-white px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#101a2b] shadow-[0_8px_36px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#101a2b]">
             Subscribe to Echo
@@ -65,9 +82,9 @@ export default function Home() {
       <footer className="absolute bottom-7 left-6 right-6 z-10 flex items-end justify-between text-[10px] uppercase tracking-[0.28em] text-white/55 sm:bottom-9 sm:left-10 sm:right-10 lg:left-16 lg:right-16">
         <span>Follow the Practice</span>
         <div className="flex items-center gap-4 normal-case tracking-normal text-white/65">
-          <a href="https://x.com" aria-label="Follow Go Within on X" className="transition hover:text-white"><X className="size-4" strokeWidth={1.5} /></a>
-          <a href="https://instagram.com" aria-label="Follow Go Within on Instagram" className="transition hover:text-white"><Camera className="size-4" strokeWidth={1.5} /></a>
-          <a href="https://tiktok.com" aria-label="Follow Go Within on TikTok" className="transition hover:text-white"><Music2 className="size-4" strokeWidth={1.5} /></a>
+          <a href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="Follow Go Within on X" className="transition hover:text-white"><X className="size-4" strokeWidth={1.5} /></a>
+          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Follow Go Within on Instagram" className="transition hover:text-white"><InstagramIcon className="size-4" /></a>
+          <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" aria-label="Follow Go Within on TikTok" className="transition hover:text-white"><TikTokIcon className="size-4" /></a>
         </div>
         <span className="hidden sm:block">Vol. 01</span>
       </footer>
