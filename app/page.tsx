@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowDownRight, Menu, X } from 'lucide-react'
+import { ArrowDownRight, X } from 'lucide-react'
+import { NavigationDrawer } from '@/components/navigation-drawer'
 
 function BronzeKeyMark({ className = '' }: { className?: string }) {
   return (
@@ -43,6 +44,8 @@ export default function Home() {
   }, [])
 
   return (
+    <>
+      <NavigationDrawer />
     <main className="relative min-h-svh overflow-hidden bg-[#071525] text-white">
       <div aria-hidden="true" className="hero-parallax absolute inset-[-8%] bg-cover bg-center" style={{ backgroundImage: "url('/images/go-within-ocean.png')", transform: `translate3d(0, ${scrollY * 0.12}px, 0) scale(1.08)` }} />
       <div aria-hidden="true" className="hero-overlay absolute inset-0 bg-gradient-to-b from-[#091a31]/35 via-[#11162c]/25 to-[#030b17]/80" />
@@ -53,9 +56,6 @@ export default function Home() {
           <BronzeKeyMark className="size-10 text-[#c28b61] drop-shadow-[0_0_14px_rgba(210,153,98,0.42)] transition group-hover:text-[#edb17a]" />
           <span className="text-[11px] font-medium uppercase tracking-[0.34em] text-white/90">Go Within</span>
         </a>
-        <button type="button" className="flex size-11 items-center justify-center rounded-full border border-white/35 bg-black/10 text-white backdrop-blur-md transition hover:bg-white/15" aria-label="Open navigation">
-          <Menu className="size-5" strokeWidth={1.5} />
-        </button>
       </header>
 
       <section id="top" className="relative z-10 flex min-h-[calc(100svh-96px)] items-center justify-center px-6 pb-24 pt-10 text-center sm:px-10">
@@ -89,6 +89,7 @@ export default function Home() {
         <span className="hidden sm:block">Vol. 01</span>
       </footer>
     </main>
+    </>
   )
 }
 
