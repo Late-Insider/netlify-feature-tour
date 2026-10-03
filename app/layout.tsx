@@ -3,8 +3,9 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Go Within — A Practice of Presence',
-  description: 'Find the quiet beneath the noise. A practice of presence from Go Within.',
+  title: 'Go Within | Daily Invitations to Presence & The Echo Editorial',
+  description: 'A daily digital publication offering a single, 5-minute reflection to help you navigate modern noise and return to presence. Subscribe to Echo today.',
+  keywords: ['Go Within blog', 'Echo newsletter', 'daily mindfulness readings', 'modern philosophy journal', 'presence practice', 'daily reflections', 'independent editorial'],
   generator: 'v0.app',
   icons: {
     icon: [

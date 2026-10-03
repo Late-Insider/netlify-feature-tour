@@ -169,4 +169,26 @@
   .font-serif {
     font-family: Georgia, 'Times New Roman', serif;
   }
+
+  .hero-content {
+    animation: hero-fade-in 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .hero-overlay {
+    animation: overlay-breathe 12s ease-in-out infinite;
+  }
+
+  @keyframes hero-fade-in {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes overlay-breathe {
+    0%, 100% { opacity: 0.82; }
+    50% { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-content, .hero-overlay { animation: none; }
+  }
 }
