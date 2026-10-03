@@ -1,16 +1,37 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import Navbar from "@/components/navbar"
-import { ThemeProvider } from "@/components/theme-provider"
-
-const inter = Inter({ subsets: ["latin"] })
+import { Analytics } from '@vercel/analytics/next'
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: "LATE - OWN YOUR TIME",
-  description: "Because success isn't about being on time. It's about making an impact when you arrive.",
-    generator: 'v0.app'
+  title: 'Go Within | Daily Invitations to Presence & The Echo Editorial',
+  description: 'A daily digital publication offering a single, 5-minute reflection to help you navigate modern noise and return to presence. Subscribe to Echo today.',
+  keywords: ['Go Within blog', 'Echo newsletter', 'daily mindfulness readings', 'modern philosophy journal', 'presence practice', 'daily reflections', 'independent editorial'],
+  generator: 'v0.app',
+  icons: {
+    icon: [
+      {
+        url: '/icon-light-32x32.png',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/icon-dark-32x32.png',
+        media: '(prefers-color-scheme: dark)',
+      },
+      {
+        url: '/icon.svg',
+        type: 'image/svg+xml',
+      },
+    ],
+    apple: '/apple-icon.png',
+  },
+}
+
+export const viewport: Viewport = {
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
 }
 
 export default function RootLayout({
@@ -19,12 +40,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-black text-white min-h-screen`}>
-        <ThemeProvider defaultTheme="dark" attribute="class">
-          <Navbar />
-          {children}
-        </ThemeProvider>
+    <html lang="en">
+      <body className="antialiased">
+        {children}
+        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )
